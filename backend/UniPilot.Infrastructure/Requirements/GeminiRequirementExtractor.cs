@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
@@ -49,10 +49,35 @@ public sealed class GeminiRequirementExtractor(
                     {
                         text =
                             """
-                            You analyze university project documents.
+                            You analyze university assignment and project documents.
 
-                            Extract only explicit project requirements.
-                            Do not invent requirements.
+                            Extract only explicit requirements addressed to the student
+                            or project team.
+
+                            A valid requirement must explicitly ask the student or team
+                            to build, implement, submit, document, test, present, use,
+                            avoid, or complete something.
+
+                            Valid requirements include:
+                            - Required system features.
+                            - Technical or implementation constraints.
+                            - Non-functional requirements.
+                            - Required deliverables.
+                            - Submission instructions.
+                            - Explicit deadlines.
+                            - Explicit grading or evaluation criteria.
+
+                            Do not extract:
+                            - Lecture explanations.
+                            - Definitions or general facts.
+                            - Examples used for teaching.
+                            - Algorithms described only as course material.
+                            - Mathematical properties or theoretical rules.
+                            - Recommendations that are not mandatory.
+                            - Requirements invented or inferred from the topic.
+
+                            If the document contains no explicit assignment or project
+                            requirements, return an empty requirements array.
 
                             Classify every requirement using exactly one type:
                             Functional, NonFunctional, Constraint,
@@ -62,9 +87,9 @@ public sealed class GeminiRequirementExtractor(
                             Classify priority using exactly one value:
                             Unknown, Low, Medium, High, Critical.
 
-                            Keep the title concise.
-                            Preserve the document's original meaning.
-                            Return the page number where the requirement appears.
+                            Keep each title concise.
+                            Preserve the original meaning.
+                            Return the exact page number containing the requirement.
                             """
                     }
                 }
@@ -182,34 +207,15 @@ public sealed class GeminiRequirementExtractor(
             $"v1beta/models/{Uri.EscapeDataString(model)}:" +
             "generateContent";
 
-        using var request =
-            new HttpRequestMessage(
-                HttpMethod.Post,
-                requestUri);
-
-        request.Headers.Add(
-            "x-goog-api-key",
-            apiKey);
-
-        request.Content =
-            JsonContent.Create(requestBody);
-
-        using var response =
-            await httpClient.SendAsync(
-                request,
-                cancellationToken);
+        var requestJson =
+            JsonSerializer.Serialize(requestBody);
 
         var responseBody =
-            await response.Content.ReadAsStringAsync(
+            await SendWithRetryAsync(
+                requestUri,
+                apiKey,
+                requestJson,
                 cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException(
-                $"Gemini request failed with status " +
-                $"{(int)response.StatusCode}: " +
-                Truncate(responseBody, 1000));
-        }
 
         using var responseJson =
             JsonDocument.Parse(responseBody);
@@ -268,6 +274,77 @@ public sealed class GeminiRequirementExtractor(
         }
 
         return results;
+    }
+
+    private async Task<string> SendWithRetryAsync(
+        string requestUri,
+        string apiKey,
+        string requestJson,
+        CancellationToken cancellationToken)
+    {
+        const int maximumAttempts = 3;
+
+        for (var attempt = 1;
+             attempt <= maximumAttempts;
+             attempt++)
+        {
+            using var request =
+                new HttpRequestMessage(
+                    HttpMethod.Post,
+                    requestUri);
+
+            request.Headers.Add(
+                "x-goog-api-key",
+                apiKey);
+
+            request.Content =
+                new StringContent(
+                    requestJson,
+                    Encoding.UTF8,
+                    "application/json");
+
+            using var response =
+                await httpClient.SendAsync(
+                    request,
+                    cancellationToken);
+
+            var responseBody =
+                await response.Content.ReadAsStringAsync(
+                    cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return responseBody;
+            }
+
+            var isTemporaryFailure =
+                response.StatusCode ==
+                    HttpStatusCode.TooManyRequests ||
+                response.StatusCode ==
+                    HttpStatusCode.ServiceUnavailable;
+
+            if (isTemporaryFailure &&
+                attempt < maximumAttempts)
+            {
+                var delay =
+                    TimeSpan.FromSeconds(
+                        Math.Pow(2, attempt));
+
+                await Task.Delay(
+                    delay,
+                    cancellationToken);
+
+                continue;
+            }
+
+            throw new InvalidOperationException(
+                $"Gemini request failed with status " +
+                $"{(int)response.StatusCode}: " +
+                Truncate(responseBody, 1000));
+        }
+
+        throw new InvalidOperationException(
+            "Gemini request failed after multiple attempts.");
     }
 
     private static string BuildDocumentText(
