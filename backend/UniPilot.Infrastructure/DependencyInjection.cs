@@ -10,6 +10,8 @@ using UniPilot.Application.Projects;
 using UniPilot.Infrastructure.Projects;
 using UniPilot.Application.Documents;
 using UniPilot.Infrastructure.Documents;
+using UniPilot.Application.Requirements;
+using UniPilot.Infrastructure.Requirements;
 namespace UniPilot.Infrastructure;
 
 public static class DependencyInjection
@@ -31,6 +33,8 @@ public static class DependencyInjection
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddScoped<IProjectDocumentService,ProjectDocumentService>();
         services.AddSingleton<IPdfTextExtractor,PdfPigTextExtractor>();
+        services.AddHttpClient<IRequirementExtractor,GeminiRequirementExtractor>();
+        services.AddScoped<IProjectRequirementService,ProjectRequirementService>();
         return services;
     }
 }

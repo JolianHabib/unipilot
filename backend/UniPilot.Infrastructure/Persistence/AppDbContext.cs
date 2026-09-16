@@ -7,18 +7,23 @@ public sealed class AppDbContext(
     DbContextOptions<AppDbContext> options)
     : DbContext(options)
 {
-    public DbSet<User> Users => Set<User>();
+    public DbSet<User> Users =>
+        Set<User>();
 
-    public DbSet<Course> Courses => Set<Course>();
+    public DbSet<Course> Courses =>
+        Set<Course>();
 
     public DbSet<AcademicProject> AcademicProjects =>
         Set<AcademicProject>();
 
     public DbSet<ProjectDocument> ProjectDocuments =>
-    Set<ProjectDocument>();
+        Set<ProjectDocument>();
 
     public DbSet<DocumentPage> DocumentPages =>
         Set<DocumentPage>();
+
+    public DbSet<ProjectRequirement> ProjectRequirements =>
+        Set<ProjectRequirement>();
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
@@ -156,7 +161,7 @@ public sealed class AppDbContext(
             .WithMany(x => x.Documents)
             .HasForeignKey(x => x.AcademicProjectId)
             .OnDelete(DeleteBehavior.Cascade);
-            
+
         var documentPage =
             modelBuilder.Entity<DocumentPage>();
 
@@ -184,5 +189,58 @@ public sealed class AppDbContext(
             .WithMany(x => x.Pages)
             .HasForeignKey(x => x.ProjectDocumentId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        var projectRequirement =
+            modelBuilder.Entity<ProjectRequirement>();
+
+        projectRequirement.ToTable("project_requirements");
+
+        projectRequirement.HasKey(x => x.Id);
+
+        projectRequirement.Property(x => x.Title)
+            .IsRequired()
+            .HasMaxLength(250);
+
+        projectRequirement.Property(x => x.Description)
+            .IsRequired()
+            .HasColumnType("text");
+
+        projectRequirement.Property(x => x.Type)
+            .HasConversion<string>()
+            .IsRequired()
+            .HasMaxLength(40);
+
+        projectRequirement.Property(x => x.Priority)
+            .HasConversion<string>()
+            .IsRequired()
+            .HasMaxLength(20);
+
+        projectRequirement.Property(x => x.IsCompleted)
+            .IsRequired();
+
+        projectRequirement.Property(x => x.CreatedAtUtc)
+            .IsRequired();
+
+        projectRequirement.HasIndex(x =>
+            x.AcademicProjectId);
+
+        projectRequirement.HasIndex(x =>
+            x.ProjectDocumentId);
+
+        projectRequirement.HasOne(x =>
+                x.AcademicProject)
+            .WithMany(x =>
+                x.Requirements)
+            .HasForeignKey(x =>
+                x.AcademicProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        projectRequirement.HasOne(x =>
+                x.ProjectDocument)
+            .WithMany(x =>
+                x.Requirements)
+            .HasForeignKey(x =>
+                x.ProjectDocumentId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

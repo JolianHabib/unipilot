@@ -33,4 +33,6 @@ public sealed class ProjectDocument
 
     public ICollection<DocumentPage> Pages { get; set; } =
         new List<DocumentPage>();
+
+    public ICollection<ProjectRequirement> Requirements { get; set; } = new List<ProjectRequirement>();
 }

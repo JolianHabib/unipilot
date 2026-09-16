@@ -20,4 +20,6 @@ public sealed class AcademicProject
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public ICollection<ProjectDocument> Documents { get; set; } = new List<ProjectDocument>();
+
+    public ICollection<ProjectRequirement> Requirements { get; set; } = new List<ProjectRequirement>();
 }
