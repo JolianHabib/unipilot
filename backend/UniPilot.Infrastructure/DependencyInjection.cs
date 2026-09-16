@@ -6,6 +6,8 @@ using UniPilot.Application.Auth;
 using UniPilot.Infrastructure.Auth;
 using UniPilot.Application.Courses;
 using UniPilot.Infrastructure.Courses;
+using UniPilot.Application.Projects;
+using UniPilot.Infrastructure.Projects;
 namespace UniPilot.Infrastructure;
 
 public static class DependencyInjection
@@ -23,6 +25,7 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString));
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICourseService, CourseService>();
+        services.AddScoped<IAcademicProjectService,AcademicProjectService>();
         return services;
     }
 }

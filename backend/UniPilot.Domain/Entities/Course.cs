@@ -15,4 +15,7 @@ public sealed class Course
     public User Owner { get; set; } = null!;
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public ICollection<AcademicProject> Projects { get; set; } =
+    new List<AcademicProject>();
 }
