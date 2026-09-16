@@ -8,6 +8,8 @@ using UniPilot.Application.Courses;
 using UniPilot.Infrastructure.Courses;
 using UniPilot.Application.Projects;
 using UniPilot.Infrastructure.Projects;
+using UniPilot.Application.Documents;
+using UniPilot.Infrastructure.Documents;
 namespace UniPilot.Infrastructure;
 
 public static class DependencyInjection
@@ -26,6 +28,9 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<IAcademicProjectService,AcademicProjectService>();
+        services.AddSingleton<IFileStorage, LocalFileStorage>();
+        services.AddScoped<IProjectDocumentService,ProjectDocumentService>();
+        services.AddSingleton<IPdfTextExtractor,PdfPigTextExtractor>();
         return services;
     }
 }

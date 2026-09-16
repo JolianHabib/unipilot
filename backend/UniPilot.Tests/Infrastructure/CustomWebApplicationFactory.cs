@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using UniPilot.Infrastructure.Persistence;
+using UniPilot.Application.Documents;
 
 namespace UniPilot.Tests.Infrastructure;
 
@@ -55,6 +56,10 @@ public sealed class CustomWebApplicationFactory
 
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase(_databaseName));
+           
+            services.RemoveAll<IFileStorage>();
+
+            services.AddSingleton<IFileStorage, TestFileStorage>();
         });
     }
 }

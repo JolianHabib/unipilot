@@ -14,6 +14,12 @@ public sealed class AppDbContext(
     public DbSet<AcademicProject> AcademicProjects =>
         Set<AcademicProject>();
 
+    public DbSet<ProjectDocument> ProjectDocuments =>
+    Set<ProjectDocument>();
+
+    public DbSet<DocumentPage> DocumentPages =>
+        Set<DocumentPage>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
@@ -96,6 +102,87 @@ public sealed class AppDbContext(
         academicProject.HasOne(x => x.Course)
             .WithMany(x => x.Projects)
             .HasForeignKey(x => x.CourseId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        var projectDocument =
+            modelBuilder.Entity<ProjectDocument>();
+
+        projectDocument.ToTable("project_documents");
+
+        projectDocument.HasKey(x => x.Id);
+
+        projectDocument.Property(x => x.OriginalFileName)
+            .IsRequired()
+            .HasMaxLength(255);
+
+        projectDocument.Property(x => x.StorageKey)
+            .IsRequired()
+            .HasMaxLength(500);
+
+        projectDocument.Property(x => x.ContentType)
+            .IsRequired()
+            .HasMaxLength(100);
+
+        projectDocument.Property(x => x.ContentHash)
+            .IsRequired()
+            .HasMaxLength(64);
+
+        projectDocument.Property(x => x.DocumentType)
+            .HasConversion<string>()
+            .IsRequired()
+            .HasMaxLength(40);
+
+        projectDocument.Property(x => x.ProcessingStatus)
+            .HasConversion<string>()
+            .IsRequired()
+            .HasMaxLength(30);
+
+        projectDocument.Property(x => x.FailureReason)
+            .HasMaxLength(1000);
+
+        projectDocument.Property(x => x.UploadedAtUtc)
+            .IsRequired();
+
+        projectDocument.HasIndex(x => x.AcademicProjectId);
+
+        projectDocument.HasIndex(x => new
+            {
+                x.AcademicProjectId,
+                x.ContentHash
+            })
+            .IsUnique();
+
+        projectDocument.HasOne(x => x.AcademicProject)
+            .WithMany(x => x.Documents)
+            .HasForeignKey(x => x.AcademicProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+            
+        var documentPage =
+            modelBuilder.Entity<DocumentPage>();
+
+        documentPage.ToTable("document_pages");
+
+        documentPage.HasKey(x => x.Id);
+
+        documentPage.Property(x => x.PageNumber)
+            .IsRequired();
+
+        documentPage.Property(x => x.Text)
+            .IsRequired()
+            .HasColumnType("text");
+
+        documentPage.HasIndex(x => x.ProjectDocumentId);
+
+        documentPage.HasIndex(x => new
+            {
+                x.ProjectDocumentId,
+                x.PageNumber
+            })
+            .IsUnique();
+
+        documentPage.HasOne(x => x.ProjectDocument)
+            .WithMany(x => x.Pages)
+            .HasForeignKey(x => x.ProjectDocumentId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

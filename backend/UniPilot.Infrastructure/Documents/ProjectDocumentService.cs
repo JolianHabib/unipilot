@@ -1,0 +1,258 @@
+using System.Security.Cryptography;
+using Microsoft.EntityFrameworkCore;
+using UniPilot.Application.Documents;
+using UniPilot.Domain.Entities;
+using UniPilot.Infrastructure.Persistence;
+
+namespace UniPilot.Infrastructure.Documents;
+
+public sealed class ProjectDocumentService(
+    AppDbContext dbContext,
+    IFileStorage fileStorage,
+    IPdfTextExtractor pdfTextExtractor)
+    : IProjectDocumentService
+{
+    public async Task<UploadDocumentResult> UploadAsync(
+        UploadProjectDocumentCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var ownsProject =
+            await dbContext.AcademicProjects.AnyAsync(
+                project =>
+                    project.Id == command.AcademicProjectId &&
+                    project.Course.OwnerId == command.OwnerId,
+                cancellationToken);
+
+        if (!ownsProject)
+        {
+            return new UploadDocumentResult(
+                UploadDocumentStatus.ProjectNotFound,
+                null);
+        }
+
+        if (!command.Content.CanSeek)
+        {
+            throw new InvalidOperationException(
+                "The uploaded content must support seeking.");
+        }
+
+        command.Content.Position = 0;
+
+        using var sha256 = SHA256.Create();
+
+        var hashBytes = await sha256.ComputeHashAsync(
+            command.Content,
+            cancellationToken);
+
+        var contentHash =
+            Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+        command.Content.Position = 0;
+
+        var duplicateExists =
+            await dbContext.ProjectDocuments.AnyAsync(
+                document =>
+                    document.AcademicProjectId ==
+                        command.AcademicProjectId &&
+                    document.ContentHash == contentHash,
+                cancellationToken);
+
+        if (duplicateExists)
+        {
+            return new UploadDocumentResult(
+                UploadDocumentStatus.Duplicate,
+                null);
+        }
+
+        var document = new ProjectDocument
+        {
+            AcademicProjectId = command.AcademicProjectId,
+            OriginalFileName = command.OriginalFileName,
+            ContentType = command.ContentType,
+            FileSizeBytes = command.FileSizeBytes,
+            ContentHash = contentHash,
+            DocumentType = command.DocumentType,
+            ProcessingStatus =
+                DocumentProcessingStatus.Uploaded
+        };
+
+        document.StorageKey =
+            $"{command.AcademicProjectId:N}/{document.Id:N}.pdf";
+
+        await fileStorage.SaveAsync(
+            document.StorageKey,
+            command.Content,
+            cancellationToken);
+
+        try
+        {
+            dbContext.ProjectDocuments.Add(document);
+
+            await dbContext.SaveChangesAsync(
+                cancellationToken);
+        }
+        catch
+        {
+            await fileStorage.DeleteAsync(
+                document.StorageKey,
+                cancellationToken);
+
+            throw;
+        }
+
+        await ExtractAndSavePagesAsync(
+            document,
+            cancellationToken);
+
+        return new UploadDocumentResult(
+            UploadDocumentStatus.Success,
+            Map(document));
+    }
+
+    public async Task<IReadOnlyList<ProjectDocumentResult>?>
+        GetByProjectAsync(
+            Guid ownerId,
+            Guid academicProjectId,
+            CancellationToken cancellationToken = default)
+    {
+        var ownsProject =
+            await dbContext.AcademicProjects.AnyAsync(
+                project =>
+                    project.Id == academicProjectId &&
+                    project.Course.OwnerId == ownerId,
+                cancellationToken);
+
+        if (!ownsProject)
+        {
+            return null;
+        }
+
+        return await dbContext.ProjectDocuments
+            .AsNoTracking()
+            .Where(document =>
+                document.AcademicProjectId == academicProjectId)
+            .OrderByDescending(document =>
+                document.UploadedAtUtc)
+            .Select(document => new ProjectDocumentResult(
+                document.Id,
+                document.AcademicProjectId,
+                document.OriginalFileName,
+                document.DocumentType.ToString(),
+                document.ProcessingStatus.ToString(),
+                document.FileSizeBytes,
+                document.PageCount,
+                document.FailureReason,
+                document.UploadedAtUtc))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<DocumentPageResult>?>
+        GetPagesAsync(
+            Guid ownerId,
+            Guid documentId,
+            CancellationToken cancellationToken = default)
+    {
+        var ownsDocument =
+            await dbContext.ProjectDocuments.AnyAsync(
+                document =>
+                    document.Id == documentId &&
+                    document.AcademicProject.Course.OwnerId ==
+                        ownerId,
+                cancellationToken);
+
+        if (!ownsDocument)
+        {
+            return null;
+        }
+
+        return await dbContext.DocumentPages
+            .AsNoTracking()
+            .Where(page =>
+                page.ProjectDocumentId == documentId)
+            .OrderBy(page => page.PageNumber)
+            .Select(page => new DocumentPageResult(
+                page.PageNumber,
+                page.Text))
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task ExtractAndSavePagesAsync(
+        ProjectDocument document,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            document.ProcessingStatus =
+                DocumentProcessingStatus.Extracting;
+
+            await dbContext.SaveChangesAsync(
+                cancellationToken);
+
+            await using var pdfStream =
+                await fileStorage.OpenReadAsync(
+                    document.StorageKey,
+                    cancellationToken);
+
+            var extractedPages =
+                pdfTextExtractor.Extract(pdfStream);
+
+            foreach (var extractedPage in extractedPages)
+            {
+                dbContext.DocumentPages.Add(
+                    new DocumentPage
+                    {
+                        ProjectDocumentId = document.Id,
+                        PageNumber = extractedPage.PageNumber,
+                        Text = extractedPage.Text
+                    });
+            }
+
+            document.PageCount = extractedPages.Count;
+            document.ProcessingStatus =
+                DocumentProcessingStatus.Ready;
+            document.FailureReason = null;
+
+            await dbContext.SaveChangesAsync(
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            document.ProcessingStatus =
+                DocumentProcessingStatus.Failed;
+
+            document.FailureReason =
+                Truncate(exception.Message, 1000);
+
+            await dbContext.SaveChangesAsync(
+                CancellationToken.None);
+        }
+    }
+
+    private static string Truncate(
+        string value,
+        int maximumLength)
+    {
+        return value.Length <= maximumLength
+            ? value
+            : value[..maximumLength];
+    }
+
+    private static ProjectDocumentResult Map(
+        ProjectDocument document)
+    {
+        return new ProjectDocumentResult(
+            document.Id,
+            document.AcademicProjectId,
+            document.OriginalFileName,
+            document.DocumentType.ToString(),
+            document.ProcessingStatus.ToString(),
+            document.FileSizeBytes,
+            document.PageCount,
+            document.FailureReason,
+            document.UploadedAtUtc);
+    }
+}
