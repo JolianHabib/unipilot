@@ -7,6 +7,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<Course> Courses => Set<Course>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -35,5 +36,31 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
         user.HasIndex(x => x.Email)
             .IsUnique();
+
+        var course = modelBuilder.Entity<Course>();
+
+course.ToTable("courses");
+
+course.HasKey(x => x.Id);
+
+course.Property(x => x.Name)
+    .IsRequired()
+    .HasMaxLength(150);
+
+course.Property(x => x.Code)
+    .HasMaxLength(50);
+
+course.Property(x => x.Description)
+    .HasMaxLength(1000);
+
+course.Property(x => x.CreatedAtUtc)
+    .IsRequired();
+
+course.HasIndex(x => x.OwnerId);
+
+course.HasOne(x => x.Owner)
+    .WithMany(x => x.Courses)
+    .HasForeignKey(x => x.OwnerId)
+    .OnDelete(DeleteBehavior.Cascade);
     }
 }

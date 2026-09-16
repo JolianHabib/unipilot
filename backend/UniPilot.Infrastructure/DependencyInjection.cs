@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using UniPilot.Infrastructure.Persistence;
 using UniPilot.Application.Auth;
 using UniPilot.Infrastructure.Auth;
+using UniPilot.Application.Courses;
+using UniPilot.Infrastructure.Courses;
 namespace UniPilot.Infrastructure;
 
 public static class DependencyInjection
@@ -20,6 +22,7 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ICourseService, CourseService>();
         return services;
     }
 }

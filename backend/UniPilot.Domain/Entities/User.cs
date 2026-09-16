@@ -11,4 +11,7 @@ public sealed class User
     public string PasswordHash { get; set; } = string.Empty;
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public ICollection<Course> Courses { get; set; } =
+        new List<Course>();
 }
