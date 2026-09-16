@@ -5,7 +5,7 @@ using UniPilot.Infrastructure.Persistence;
 
 namespace UniPilot.Infrastructure.Auth;
 
-public sealed class AuthService(AppDbContext dbContext) : IAuthService
+public sealed class AuthService(AppDbContext dbContext,ITokenService tokenService) : IAuthService
 {
     public async Task<RegisterResult> RegisterAsync(
         RegisterCommand command,
@@ -44,4 +44,43 @@ public sealed class AuthService(AppDbContext dbContext) : IAuthService
             user.Email,
             null);
     }
+    public async Task<LoginResult> LoginAsync(
+    LoginCommand command,
+    CancellationToken cancellationToken = default)
+{
+    var normalizedEmail = command.Email.Trim().ToLowerInvariant();
+
+    var user = await dbContext.Users.SingleOrDefaultAsync(
+        existingUser => existingUser.Email == normalizedEmail,
+        cancellationToken);
+
+    if (user is null ||
+        !BCrypt.Net.BCrypt.Verify(
+            command.Password,
+            user.PasswordHash))
+    {
+        return new LoginResult(
+            false,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "Invalid email or password.");
+    }
+
+    var token = tokenService.CreateToken(
+        user.Id,
+        user.FullName,
+        user.Email);
+
+    return new LoginResult(
+        true,
+        user.Id,
+        user.FullName,
+        user.Email,
+        token.AccessToken,
+        token.ExpiresAtUtc,
+        null);
+}
 }
