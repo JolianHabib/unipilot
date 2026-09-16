@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="UniPilot.API/UniPilot.API.csproj" />
+  <Project Path="UniPilot.Application/UniPilot.Application.csproj" />
+  <Project Path="UniPilot.Domain/UniPilot.Domain.csproj" />
+  <Project Path="UniPilot.Infrastructure/UniPilot.Infrastructure.csproj" />
+  <Project Path="UniPilot.Tests/UniPilot.Tests.csproj" />
+</Solution>
