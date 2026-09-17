@@ -200,6 +200,174 @@ public async Task SetCompletion_AnotherUserReturnsNotFound()
         HttpStatusCode.NotFound,
         response.StatusCode);
 }
+[Fact]
+public async Task Delete_OwnerCanDeleteRequirement()
+{
+    var token = await RegisterAndLoginAsync();
+
+    var requirementId =
+        await CreateRequirementAsync(token);
+
+    using var deleteRequest =
+        CreateAuthorizedRequest(
+            HttpMethod.Delete,
+            $"/api/requirements/{requirementId}",
+            token);
+
+    var deleteResponse =
+        await _client.SendAsync(deleteRequest);
+
+    Assert.Equal(
+        HttpStatusCode.NoContent,
+        deleteResponse.StatusCode);
+
+    using var secondDeleteRequest =
+        CreateAuthorizedRequest(
+            HttpMethod.Delete,
+            $"/api/requirements/{requirementId}",
+            token);
+
+    var secondDeleteResponse =
+        await _client.SendAsync(
+            secondDeleteRequest);
+
+    Assert.Equal(
+        HttpStatusCode.NotFound,
+        secondDeleteResponse.StatusCode);
+}
+
+[Fact]
+public async Task Delete_AnotherUsersRequirement_ReturnsNotFound()
+{
+    var ownerToken = await RegisterAndLoginAsync();
+    var otherToken = await RegisterAndLoginAsync();
+
+    var requirementId =
+        await CreateRequirementAsync(ownerToken);
+
+    using var request = CreateAuthorizedRequest(
+        HttpMethod.Delete,
+        $"/api/requirements/{requirementId}",
+        otherToken);
+
+    var response = await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.NotFound,
+        response.StatusCode);
+}
+[Fact]
+public async Task Update_OwnerCanEditRequirement()
+{
+    var token = await RegisterAndLoginAsync();
+
+    var requirementId =
+        await CreateRequirementAsync(token);
+
+    using var request = CreateAuthorizedRequest(
+        HttpMethod.Put,
+        $"/api/requirements/{requirementId}",
+        token);
+
+    request.Content = JsonContent.Create(
+        new
+        {
+            title = "Use secure JWT authentication",
+            description =
+                "The system must authenticate users using JWT.",
+
+            type = "NonFunctional",
+            priority = "Critical"
+        });
+
+    var response = await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.OK,
+        response.StatusCode);
+
+    using var body = JsonDocument.Parse(
+        await response.Content.ReadAsStringAsync());
+
+    Assert.Equal(
+        "Use secure JWT authentication",
+        body.RootElement
+            .GetProperty("title")
+            .GetString());
+
+    Assert.Equal(
+        "NonFunctional",
+        body.RootElement
+            .GetProperty("type")
+            .GetString());
+
+    Assert.Equal(
+        "Critical",
+        body.RootElement
+            .GetProperty("priority")
+            .GetString());
+}
+
+[Fact]
+public async Task Update_AnotherUsersRequirement_ReturnsNotFound()
+{
+    var ownerToken = await RegisterAndLoginAsync();
+    var otherToken = await RegisterAndLoginAsync();
+
+    var requirementId =
+        await CreateRequirementAsync(ownerToken);
+
+    using var request = CreateAuthorizedRequest(
+        HttpMethod.Put,
+        $"/api/requirements/{requirementId}",
+        otherToken);
+
+    request.Content = JsonContent.Create(
+        new
+        {
+            title = "Unauthorized update",
+            description =
+                "This update must not be permitted.",
+
+            type = "Functional",
+            priority = "Low"
+        });
+
+    var response = await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.NotFound,
+        response.StatusCode);
+}
+
+[Fact]
+public async Task Update_InvalidType_ReturnsBadRequest()
+{
+    var token = await RegisterAndLoginAsync();
+
+    var requirementId =
+        await CreateRequirementAsync(token);
+
+    using var request = CreateAuthorizedRequest(
+        HttpMethod.Put,
+        $"/api/requirements/{requirementId}",
+        token);
+
+    request.Content = JsonContent.Create(
+        new
+        {
+            title = "Updated requirement",
+            description = "Updated description",
+            type = "NotARealType",
+            priority = "High"
+        });
+
+    var response = await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.BadRequest,
+        response.StatusCode);
+}
 private async Task<Guid> CreateRequirementAsync(
     string token)
 {

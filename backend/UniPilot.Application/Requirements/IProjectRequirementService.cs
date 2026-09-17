@@ -20,4 +20,15 @@ public interface IProjectRequirementService
             Guid requirementId,
             bool isCompleted,
             CancellationToken cancellationToken = default);
+
+    Task<bool> DeleteAsync(
+    Guid ownerId,
+    Guid requirementId,
+    CancellationToken cancellationToken = default);
+
+    Task<ProjectRequirementResult?> UpdateAsync(
+    Guid ownerId,
+    Guid requirementId,
+    UpdateProjectRequirementCommand command,
+    CancellationToken cancellationToken = default);
 }

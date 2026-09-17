@@ -225,7 +225,76 @@ public sealed class ProjectRequirementService(
         requirement.IsCompleted,
         requirement.CreatedAtUtc);
 }
+public async Task<bool> DeleteAsync(
+    Guid ownerId,
+    Guid requirementId,
+    CancellationToken cancellationToken = default)
+{
+    var requirement =
+        await dbContext.ProjectRequirements
+            .SingleOrDefaultAsync(
+                item =>
+                    item.Id == requirementId &&
+                    item.AcademicProject.Course.OwnerId ==
+                        ownerId,
+                cancellationToken);
 
+    if (requirement is null)
+    {
+        return false;
+    }
+
+    dbContext.ProjectRequirements.Remove(requirement);
+
+    await dbContext.SaveChangesAsync(
+        cancellationToken);
+
+    return true;
+}
+public async Task<ProjectRequirementResult?> UpdateAsync(
+    Guid ownerId,
+    Guid requirementId,
+    UpdateProjectRequirementCommand command,
+    CancellationToken cancellationToken = default)
+{
+    var requirement =
+        await dbContext.ProjectRequirements
+            .SingleOrDefaultAsync(
+                item =>
+                    item.Id == requirementId &&
+                    item.AcademicProject.Course.OwnerId ==
+                        ownerId,
+                cancellationToken);
+
+    if (requirement is null)
+    {
+        return null;
+    }
+
+    requirement.Title =
+        Truncate(command.Title.Trim(), 250);
+
+    requirement.Description =
+        command.Description.Trim();
+
+    requirement.Type = command.Type;
+    requirement.Priority = command.Priority;
+
+    await dbContext.SaveChangesAsync(
+        cancellationToken);
+
+    return new ProjectRequirementResult(
+        requirement.Id,
+        requirement.AcademicProjectId,
+        requirement.ProjectDocumentId,
+        requirement.SourcePageNumber,
+        requirement.Title,
+        requirement.Description,
+        requirement.Type.ToString(),
+        requirement.Priority.ToString(),
+        requirement.IsCompleted,
+        requirement.CreatedAtUtc);
+}
     private static string Truncate(
         string value,
         int maximumLength)
