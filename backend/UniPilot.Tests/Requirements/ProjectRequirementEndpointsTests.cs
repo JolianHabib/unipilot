@@ -140,7 +140,96 @@ public sealed class ProjectRequirementEndpointsTests
             HttpStatusCode.NotFound,
             response.StatusCode);
     }
+    [Fact]
+public async Task SetCompletion_OwnerCanCompleteRequirement()
+{
+    var token = await RegisterAndLoginAsync();
 
+    var requirementId =
+        await CreateRequirementAsync(token);
+
+    using var request = CreateAuthorizedRequest(
+        HttpMethod.Patch,
+        $"/api/requirements/{requirementId}",
+        token);
+
+    request.Content = JsonContent.Create(
+        new
+        {
+            isCompleted = true
+        });
+
+    var response = await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.OK,
+        response.StatusCode);
+
+    using var body = JsonDocument.Parse(
+        await response.Content.ReadAsStringAsync());
+
+    Assert.True(
+        body.RootElement
+            .GetProperty("isCompleted")
+            .GetBoolean());
+}
+
+[Fact]
+public async Task SetCompletion_AnotherUserReturnsNotFound()
+{
+    var ownerToken = await RegisterAndLoginAsync();
+    var otherToken = await RegisterAndLoginAsync();
+
+    var requirementId =
+        await CreateRequirementAsync(ownerToken);
+
+    using var request = CreateAuthorizedRequest(
+        HttpMethod.Patch,
+        $"/api/requirements/{requirementId}",
+        otherToken);
+
+    request.Content = JsonContent.Create(
+        new
+        {
+            isCompleted = true
+        });
+
+    var response = await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.NotFound,
+        response.StatusCode);
+}
+private async Task<Guid> CreateRequirementAsync(
+    string token)
+{
+    var projectId = await CreateProjectAsync(token);
+
+    var documentId =
+        await UploadDocumentAsync(
+            token,
+            projectId);
+
+    await MarkDocumentReadyAsync(documentId);
+
+    using var request = CreateAuthorizedRequest(
+        HttpMethod.Post,
+        $"/api/documents/{documentId}/requirements/extract",
+        token);
+
+    var response = await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.OK,
+        response.StatusCode);
+
+    using var body = JsonDocument.Parse(
+        await response.Content.ReadAsStringAsync());
+
+    return body.RootElement[0]
+        .GetProperty("id")
+        .GetGuid();
+}
     private async Task MarkDocumentReadyAsync(
         Guid documentId)
     {
@@ -351,4 +440,5 @@ public sealed class ProjectRequirementEndpointsTests
 
         return request;
     }
+    
 }

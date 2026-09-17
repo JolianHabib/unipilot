@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UniPilot.Application.Requirements;
+using UniPilot.API.Contracts.Requirements;
 
 namespace UniPilot.API.Controllers;
 
@@ -73,7 +74,31 @@ public sealed class ProjectRequirementsController(
 
         return Ok(requirements);
     }
+[HttpPatch("requirements/{requirementId:guid}")]
+public async Task<IActionResult> SetCompletion(
+    Guid requirementId,
+    SetRequirementCompletionRequest request,
+    CancellationToken cancellationToken)
+{
+    if (!TryGetOwnerId(out var ownerId))
+    {
+        return Unauthorized();
+    }
 
+    var requirement =
+        await requirementService.SetCompletionAsync(
+            ownerId,
+            requirementId,
+            request.IsCompleted,
+            cancellationToken);
+
+    if (requirement is null)
+    {
+        return NotFound();
+    }
+
+    return Ok(requirement);
+}
     private bool TryGetOwnerId(
         out Guid ownerId)
     {

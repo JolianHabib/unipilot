@@ -13,4 +13,11 @@ public interface IProjectRequirementService
             Guid ownerId,
             Guid documentId,
             CancellationToken cancellationToken = default);
+
+    Task<ProjectRequirementResult?>
+        SetCompletionAsync(
+            Guid ownerId,
+            Guid requirementId,
+            bool isCompleted,
+            CancellationToken cancellationToken = default);
 }

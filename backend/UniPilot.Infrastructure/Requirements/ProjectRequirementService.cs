@@ -187,6 +187,44 @@ public sealed class ProjectRequirementService(
                     requirement.CreatedAtUtc))
             .ToListAsync(cancellationToken);
     }
+    public async Task<ProjectRequirementResult?>
+    SetCompletionAsync(
+        Guid ownerId,
+        Guid requirementId,
+        bool isCompleted,
+        CancellationToken cancellationToken = default)
+{
+    var requirement =
+        await dbContext.ProjectRequirements
+            .SingleOrDefaultAsync(
+                item =>
+                    item.Id == requirementId &&
+                    item.AcademicProject.Course.OwnerId ==
+                        ownerId,
+                cancellationToken);
+
+    if (requirement is null)
+    {
+        return null;
+    }
+
+    requirement.IsCompleted = isCompleted;
+
+    await dbContext.SaveChangesAsync(
+        cancellationToken);
+
+    return new ProjectRequirementResult(
+        requirement.Id,
+        requirement.AcademicProjectId,
+        requirement.ProjectDocumentId,
+        requirement.SourcePageNumber,
+        requirement.Title,
+        requirement.Description,
+        requirement.Type.ToString(),
+        requirement.Priority.ToString(),
+        requirement.IsCompleted,
+        requirement.CreatedAtUtc);
+}
 
     private static string Truncate(
         string value,
