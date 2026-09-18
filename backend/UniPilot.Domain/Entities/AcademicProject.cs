@@ -17,9 +17,15 @@ public sealed class AcademicProject
 
     public Course Course { get; set; } = null!;
 
-    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAtUtc { get; set; } =
+        DateTime.UtcNow;
 
-    public ICollection<ProjectDocument> Documents { get; set; } = new List<ProjectDocument>();
+    public ICollection<ProjectDocument> Documents { get; set; } =
+        new List<ProjectDocument>();
 
-    public ICollection<ProjectRequirement> Requirements { get; set; } = new List<ProjectRequirement>();
+    public ICollection<ProjectRequirement> Requirements { get; set; } =
+        new List<ProjectRequirement>();
+
+    public ICollection<ProjectTask> Tasks { get; set; } =
+        new List<ProjectTask>();
 }

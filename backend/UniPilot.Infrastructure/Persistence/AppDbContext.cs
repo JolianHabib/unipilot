@@ -25,6 +25,9 @@ public sealed class AppDbContext(
     public DbSet<ProjectRequirement> ProjectRequirements =>
         Set<ProjectRequirement>();
 
+    public DbSet<ProjectTask> ProjectTasks =>
+        Set<ProjectTask>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
@@ -148,7 +151,8 @@ public sealed class AppDbContext(
         projectDocument.Property(x => x.UploadedAtUtc)
             .IsRequired();
 
-        projectDocument.HasIndex(x => x.AcademicProjectId);
+        projectDocument.HasIndex(x =>
+            x.AcademicProjectId);
 
         projectDocument.HasIndex(x => new
             {
@@ -157,9 +161,12 @@ public sealed class AppDbContext(
             })
             .IsUnique();
 
-        projectDocument.HasOne(x => x.AcademicProject)
-            .WithMany(x => x.Documents)
-            .HasForeignKey(x => x.AcademicProjectId)
+        projectDocument.HasOne(x =>
+                x.AcademicProject)
+            .WithMany(x =>
+                x.Documents)
+            .HasForeignKey(x =>
+                x.AcademicProjectId)
             .OnDelete(DeleteBehavior.Cascade);
 
         var documentPage =
@@ -176,7 +183,8 @@ public sealed class AppDbContext(
             .IsRequired()
             .HasColumnType("text");
 
-        documentPage.HasIndex(x => x.ProjectDocumentId);
+        documentPage.HasIndex(x =>
+            x.ProjectDocumentId);
 
         documentPage.HasIndex(x => new
             {
@@ -185,15 +193,19 @@ public sealed class AppDbContext(
             })
             .IsUnique();
 
-        documentPage.HasOne(x => x.ProjectDocument)
-            .WithMany(x => x.Pages)
-            .HasForeignKey(x => x.ProjectDocumentId)
+        documentPage.HasOne(x =>
+                x.ProjectDocument)
+            .WithMany(x =>
+                x.Pages)
+            .HasForeignKey(x =>
+                x.ProjectDocumentId)
             .OnDelete(DeleteBehavior.Cascade);
 
         var projectRequirement =
             modelBuilder.Entity<ProjectRequirement>();
 
-        projectRequirement.ToTable("project_requirements");
+        projectRequirement.ToTable(
+            "project_requirements");
 
         projectRequirement.HasKey(x => x.Id);
 
@@ -241,6 +253,68 @@ public sealed class AppDbContext(
                 x.Requirements)
             .HasForeignKey(x =>
                 x.ProjectDocumentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        var projectTask =
+            modelBuilder.Entity<ProjectTask>();
+
+        projectTask.ToTable("project_tasks");
+
+        projectTask.HasKey(x => x.Id);
+
+        projectTask.Property(x => x.Title)
+            .IsRequired()
+            .HasMaxLength(250);
+
+        projectTask.Property(x => x.Description)
+            .HasColumnType("text");
+
+        projectTask.Property(x => x.Status)
+            .HasConversion<string>()
+            .IsRequired()
+            .HasMaxLength(30);
+
+        projectTask.Property(x => x.Priority)
+            .HasConversion<string>()
+            .IsRequired()
+            .HasMaxLength(20);
+
+        projectTask.Property(x => x.Position)
+            .IsRequired();
+
+        projectTask.Property(x => x.CreatedAtUtc)
+            .IsRequired();
+
+        projectTask.Property(x => x.UpdatedAtUtc)
+            .IsRequired();
+
+        projectTask.HasIndex(x =>
+            x.AcademicProjectId);
+
+        projectTask.HasIndex(x =>
+            x.ProjectRequirementId);
+
+        projectTask.HasIndex(x => new
+        {
+            x.AcademicProjectId,
+            x.Status,
+            x.Position
+        });
+
+        projectTask.HasOne(x =>
+                x.AcademicProject)
+            .WithMany(x =>
+                x.Tasks)
+            .HasForeignKey(x =>
+                x.AcademicProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        projectTask.HasOne(x =>
+                x.ProjectRequirement)
+            .WithMany(x =>
+                x.Tasks)
+            .HasForeignKey(x =>
+                x.ProjectRequirementId)
             .OnDelete(DeleteBehavior.SetNull);
     }
 }

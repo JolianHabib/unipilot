@@ -26,5 +26,9 @@ public sealed class ProjectRequirement
 
     public bool IsCompleted { get; set; }
 
-    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAtUtc { get; set; } =
+        DateTime.UtcNow;
+
+    public ICollection<ProjectTask> Tasks { get; set; } =
+        new List<ProjectTask>();
 }

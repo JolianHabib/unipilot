@@ -4,13 +4,41 @@ using Microsoft.IdentityModel.Tokens;
 using UniPilot.Infrastructure;
 using UniPilot.API.Authentication;
 using UniPilot.Application.Auth;
+using UniPilot.Application.Tasks;
+using UniPilot.Infrastructure.Tasks;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        "Frontend",
+        policy =>
+        {
+            policy
+                .SetIsOriginAllowed(origin =>
+                {
+                    if (!Uri.TryCreate(
+                            origin,
+                            UriKind.Absolute,
+                            out var uri))
+                    {
+                        return false;
+                    }
+
+                    return uri.IsLoopback;
+                })
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+});
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<
+    IProjectTaskService,
+    ProjectTaskService>();
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("JWT key was not configured.");
 
@@ -54,6 +82,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("Frontend");
 
 app.UseAuthentication();
 

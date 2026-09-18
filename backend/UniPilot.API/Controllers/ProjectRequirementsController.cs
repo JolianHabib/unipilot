@@ -1,8 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using UniPilot.Application.Requirements;
 using UniPilot.API.Contracts.Requirements;
+using UniPilot.Application.Requirements;
 using UniPilot.Domain.Requirements;
 
 namespace UniPilot.API.Controllers;
@@ -42,8 +42,20 @@ public sealed class ProjectRequirementsController(
             return Ok(requirements);
         }
         catch (InvalidOperationException exception)
+            when (
+                exception.Message ==
+                "The document is not ready for requirement extraction.")
         {
             return Conflict(
+                new
+                {
+                    message = exception.Message
+                });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
                 new
                 {
                     message = exception.Message
@@ -75,128 +87,140 @@ public sealed class ProjectRequirementsController(
 
         return Ok(requirements);
     }
-[HttpPatch("requirements/{requirementId:guid}")]
-public async Task<IActionResult> SetCompletion(
-    Guid requirementId,
-    SetRequirementCompletionRequest request,
-    CancellationToken cancellationToken)
-{
-    if (!TryGetOwnerId(out var ownerId))
+
+    [HttpPatch(
+        "requirements/{requirementId:guid}")]
+    public async Task<IActionResult> SetCompletion(
+        Guid requirementId,
+        SetRequirementCompletionRequest request,
+        CancellationToken cancellationToken)
     {
-        return Unauthorized();
+        if (!TryGetOwnerId(out var ownerId))
+        {
+            return Unauthorized();
+        }
+
+        var requirement =
+            await requirementService.SetCompletionAsync(
+                ownerId,
+                requirementId,
+                request.IsCompleted,
+                cancellationToken);
+
+        if (requirement is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(requirement);
     }
 
-    var requirement =
-        await requirementService.SetCompletionAsync(
-            ownerId,
-            requirementId,
-            request.IsCompleted,
-            cancellationToken);
-
-    if (requirement is null)
+    [HttpDelete(
+        "requirements/{requirementId:guid}")]
+    public async Task<IActionResult> Delete(
+        Guid requirementId,
+        CancellationToken cancellationToken)
     {
-        return NotFound();
+        if (!TryGetOwnerId(out var ownerId))
+        {
+            return Unauthorized();
+        }
+
+        var deleted =
+            await requirementService.DeleteAsync(
+                ownerId,
+                requirementId,
+                cancellationToken);
+
+        if (!deleted)
+        {
+            return NotFound();
+        }
+
+        return NoContent();
     }
 
-    return Ok(requirement);
-}
-[HttpDelete("requirements/{requirementId:guid}")]
-public async Task<IActionResult> Delete(
-    Guid requirementId,
-    CancellationToken cancellationToken)
-{
-    if (!TryGetOwnerId(out var ownerId))
+    [HttpPut(
+        "requirements/{requirementId:guid}")]
+    public async Task<IActionResult> Update(
+        Guid requirementId,
+        UpdateProjectRequirementRequest request,
+        CancellationToken cancellationToken)
     {
-        return Unauthorized();
+        if (!TryGetOwnerId(out var ownerId))
+        {
+            return Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                request.Title))
+        {
+            return BadRequest(
+                new
+                {
+                    message = "Title is required."
+                });
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                request.Description))
+        {
+            return BadRequest(
+                new
+                {
+                    message =
+                        "Description is required."
+                });
+        }
+
+        if (!Enum.TryParse<RequirementType>(
+                request.Type,
+                ignoreCase: true,
+                out var type))
+        {
+            return BadRequest(
+                new
+                {
+                    message =
+                        "Invalid requirement type."
+                });
+        }
+
+        if (!Enum.TryParse<RequirementPriority>(
+                request.Priority,
+                ignoreCase: true,
+                out var priority))
+        {
+            return BadRequest(
+                new
+                {
+                    message =
+                        "Invalid requirement priority."
+                });
+        }
+
+        var command =
+            new UpdateProjectRequirementCommand(
+                request.Title,
+                request.Description,
+                type,
+                priority);
+
+        var requirement =
+            await requirementService.UpdateAsync(
+                ownerId,
+                requirementId,
+                command,
+                cancellationToken);
+
+        if (requirement is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(requirement);
     }
 
-    var deleted =
-        await requirementService.DeleteAsync(
-            ownerId,
-            requirementId,
-            cancellationToken);
-
-    if (!deleted)
-    {
-        return NotFound();
-    }
-
-    return NoContent();
-}
-[HttpPut("requirements/{requirementId:guid}")]
-public async Task<IActionResult> Update(
-    Guid requirementId,
-    UpdateProjectRequirementRequest request,
-    CancellationToken cancellationToken)
-{
-    if (!TryGetOwnerId(out var ownerId))
-    {
-        return Unauthorized();
-    }
-
-    if (string.IsNullOrWhiteSpace(request.Title))
-    {
-        return BadRequest(
-            new
-            {
-                message = "Title is required."
-            });
-    }
-
-    if (string.IsNullOrWhiteSpace(request.Description))
-    {
-        return BadRequest(
-            new
-            {
-                message = "Description is required."
-            });
-    }
-
-    if (!Enum.TryParse<RequirementType>(
-            request.Type,
-            ignoreCase: true,
-            out var type))
-    {
-        return BadRequest(
-            new
-            {
-                message = "Invalid requirement type."
-            });
-    }
-
-    if (!Enum.TryParse<RequirementPriority>(
-            request.Priority,
-            ignoreCase: true,
-            out var priority))
-    {
-        return BadRequest(
-            new
-            {
-                message = "Invalid requirement priority."
-            });
-    }
-
-    var command =
-        new UpdateProjectRequirementCommand(
-            request.Title,
-            request.Description,
-            type,
-            priority);
-
-    var requirement =
-        await requirementService.UpdateAsync(
-            ownerId,
-            requirementId,
-            command,
-            cancellationToken);
-
-    if (requirement is null)
-    {
-        return NotFound();
-    }
-
-    return Ok(requirement);
-}
     private bool TryGetOwnerId(
         out Guid ownerId)
     {
