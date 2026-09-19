@@ -6,10 +6,14 @@ import {
   ChevronRight,
   FolderKanban,
   LayoutDashboard,
+  LoaderCircle,
   LogOut,
+  Pencil,
   Plus,
   Search,
   Sparkles,
+  Trash2,
+  X,
 } from "lucide-react";
 
 import {
@@ -20,14 +24,24 @@ import type {
   Course,
   CreateCourseInput,
   CurrentUser,
+  UpdateCourseInput,
 } from "../api/auth";
 
 type DashboardPageProps = {
   user: CurrentUser;
   courses: Course[];
-  onCourseSelect: (course: Course) => void;
+  onCourseSelect: (
+    course: Course
+  ) => void;
   onCreateCourse: (
     input: CreateCourseInput
+  ) => Promise<void>;
+  onUpdateCourse: (
+    courseId: string,
+    input: UpdateCourseInput
+  ) => Promise<void>;
+  onDeleteCourse: (
+    courseId: string
   ) => Promise<void>;
   onLogout: () => void;
 };
@@ -37,6 +51,8 @@ export function DashboardPage({
   courses,
   onCourseSelect,
   onCreateCourse,
+  onUpdateCourse,
+  onDeleteCourse,
   onLogout,
 }: DashboardPageProps) {
   const [
@@ -44,19 +60,89 @@ export function DashboardPage({
     setIsCreateCourseOpen,
   ] = useState(false);
 
+  const [
+    editingCourse,
+    setEditingCourse,
+  ] = useState<Course | null>(null);
+
+  const [
+    deletingCourse,
+    setDeletingCourse,
+  ] = useState<Course | null>(null);
+
+  const [isDeleting, setIsDeleting] =
+    useState(false);
+
+  const [
+    deleteError,
+    setDeleteError,
+  ] = useState<string | null>(null);
+
   const initials = user.fullName
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
+    .map((part) =>
+      part[0].toUpperCase()
+    )
     .join("");
 
   function openCreateCourseModal() {
+    setEditingCourse(null);
     setIsCreateCourseOpen(true);
   }
 
-  function closeCreateCourseModal() {
+  function openEditCourse(
+    course: Course
+  ) {
     setIsCreateCourseOpen(false);
+    setEditingCourse(course);
+  }
+
+  function closeCourseModal() {
+    setIsCreateCourseOpen(false);
+    setEditingCourse(null);
+  }
+
+  function openDeleteCourse(
+    course: Course
+  ) {
+    setDeletingCourse(course);
+    setDeleteError(null);
+  }
+
+  function closeDeleteCourse() {
+    if (isDeleting) {
+      return;
+    }
+
+    setDeletingCourse(null);
+    setDeleteError(null);
+  }
+
+  async function confirmDeleteCourse() {
+    if (!deletingCourse) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await onDeleteCourse(
+        deletingCourse.id
+      );
+
+      setDeletingCourse(null);
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error
+          ? error.message
+          : "Unable to delete the course."
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   return (
@@ -114,7 +200,10 @@ export function DashboardPage({
           </div>
 
           <div className="profile-details">
-            <strong>{user.fullName}</strong>
+            <strong>
+              {user.fullName}
+            </strong>
+
             <span>{user.email}</span>
           </div>
 
@@ -161,19 +250,26 @@ export function DashboardPage({
 
               <h1>
                 Welcome back,{" "}
-                {user.fullName.split(" ")[0]}
+                {
+                  user.fullName.split(
+                    " "
+                  )[0]
+                }
               </h1>
 
               <p>
-                Manage your courses, projects, and
-                AI-extracted requirements.
+                Manage your courses,
+                projects, and AI-extracted
+                requirements.
               </p>
             </div>
 
             <button
               className="new-course-button"
               type="button"
-              onClick={openCreateCourseModal}
+              onClick={
+                openCreateCourseModal
+              }
             >
               <Plus size={18} />
               New course
@@ -187,8 +283,13 @@ export function DashboardPage({
               </div>
 
               <div>
-                <span>Total courses</span>
-                <strong>{courses.length}</strong>
+                <span>
+                  Total courses
+                </span>
+
+                <strong>
+                  {courses.length}
+                </strong>
               </div>
             </article>
 
@@ -221,8 +322,9 @@ export function DashboardPage({
                 <h2>Your courses</h2>
 
                 <p>
-                  Select a course to manage its
-                  projects and documents.
+                  Select a course to
+                  manage its projects and
+                  documents.
                 </p>
               </div>
 
@@ -231,7 +333,9 @@ export function DashboardPage({
                 type="button"
               >
                 View all
-                <ChevronRight size={17} />
+                <ChevronRight
+                  size={17}
+                />
               </button>
             </div>
 
@@ -241,17 +345,23 @@ export function DashboardPage({
                   <BookOpen size={27} />
                 </div>
 
-                <h3>Create your first course</h3>
+                <h3>
+                  Create your first
+                  course
+                </h3>
 
                 <p>
-                  Courses organize your academic
-                  projects and requirements.
+                  Courses organize your
+                  academic projects and
+                  requirements.
                 </p>
 
                 <button
                   className="new-course-button"
                   type="button"
-                  onClick={openCreateCourseModal}
+                  onClick={
+                    openCreateCourseModal
+                  }
                 >
                   <Plus size={18} />
                   New course
@@ -259,53 +369,126 @@ export function DashboardPage({
               </div>
             ) : (
               <div className="course-grid">
-                {courses.map((course, index) => (
-                  <button
-                    className="course-card"
-                    type="button"
-                    key={course.id}
-                    onClick={() =>
-                      onCourseSelect(course)
-                    }
-                  >
-                    <div
-                      className={`course-accent accent-${
-                        (index % 4) + 1
-                      }`}
-                    />
+                {courses.map(
+                  (course, index) => (
+                    <article
+                      className="course-card"
+                      key={course.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() =>
+                        onCourseSelect(
+                          course
+                        )
+                      }
+                      onKeyDown={(
+                        event
+                      ) => {
+                        if (
+                          event.target !==
+                          event.currentTarget
+                        ) {
+                          return;
+                        }
 
-                    <div className="course-card-header">
-                      <div className="course-icon">
-                        <BookOpen size={22} />
+                        if (
+                          event.key ===
+                            "Enter" ||
+                          event.key === " "
+                        ) {
+                          event.preventDefault();
+
+                          onCourseSelect(
+                            course
+                          );
+                        }
+                      }}
+                    >
+                      <div
+                        className={`course-accent accent-${
+                          (index % 4) + 1
+                        }`}
+                      />
+
+                      <div className="course-card-header">
+                        <div className="course-icon">
+                          <BookOpen
+                            size={22}
+                          />
+                        </div>
+
+                        <div className="course-card-actions">
+                          <button
+                            className="course-action-button"
+                            type="button"
+                            title="Edit course"
+                            aria-label={`Edit ${course.name}`}
+                            onClick={(
+                              event
+                            ) => {
+                              event.stopPropagation();
+
+                              openEditCourse(
+                                course
+                              );
+                            }}
+                          >
+                            <Pencil
+                              size={17}
+                            />
+                          </button>
+
+                          <button
+                            className="course-action-button delete"
+                            type="button"
+                            title="Delete course"
+                            aria-label={`Delete ${course.name}`}
+                            onClick={(
+                              event
+                            ) => {
+                              event.stopPropagation();
+
+                              openDeleteCourse(
+                                course
+                              );
+                            }}
+                          >
+                            <Trash2
+                              size={17}
+                            />
+                          </button>
+                        </div>
                       </div>
 
-                      <ChevronRight
-                        className="course-arrow"
-                        size={20}
-                      />
-                    </div>
+                      <div className="course-card-content">
+                        {course.code && (
+                          <span className="course-code">
+                            {course.code}
+                          </span>
+                        )}
 
-                    <div className="course-card-content">
-                      {course.code && (
-                        <span className="course-code">
-                          {course.code}
+                        <h3>
+                          {course.name}
+                        </h3>
+
+                        <p>
+                          {course.description ??
+                            "No description added yet."}
+                        </p>
+                      </div>
+
+                      <div className="course-card-footer">
+                        <span>
+                          Open workspace
                         </span>
-                      )}
 
-                      <h3>{course.name}</h3>
-
-                      <p>
-                        {course.description ??
-                          "No description added yet."}
-                      </p>
-                    </div>
-
-                    <div className="course-card-footer">
-                      <span>Open workspace</span>
-                      <ChevronRight size={16} />
-                    </div>
-                  </button>
-                ))}
+                        <ChevronRight
+                          size={16}
+                        />
+                      </div>
+                    </article>
+                  )
+                )}
               </div>
             )}
           </section>
@@ -313,10 +496,120 @@ export function DashboardPage({
       </main>
 
       <CreateCourseModal
-        isOpen={isCreateCourseOpen}
-        onClose={closeCreateCourseModal}
-        onCreate={onCreateCourse}
+        isOpen={
+          isCreateCourseOpen ||
+          editingCourse !== null
+        }
+        course={editingCourse}
+        onClose={closeCourseModal}
+        onSave={(input) =>
+          editingCourse
+            ? onUpdateCourse(
+                editingCourse.id,
+                input
+              )
+            : onCreateCourse(input)
+        }
       />
+
+      {deletingCourse && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              closeDeleteCourse();
+            }
+          }}
+        >
+          <section
+            className="delete-course-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-course-title"
+          >
+            <button
+              className="modal-close-button delete-modal-close"
+              type="button"
+              onClick={
+                closeDeleteCourse
+              }
+              disabled={isDeleting}
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="delete-modal-icon">
+              <Trash2 size={25} />
+            </div>
+
+            <h2 id="delete-course-title">
+              Delete course?
+            </h2>
+
+            <p>
+              <strong>
+                {deletingCourse.name}
+              </strong>{" "}
+              and all its projects,
+              documents, requirements,
+              and tasks will be
+              permanently deleted.
+            </p>
+
+            {deleteError && (
+              <p
+                className="modal-error"
+                role="alert"
+              >
+                {deleteError}
+              </p>
+            )}
+
+            <div className="delete-modal-actions">
+              <button
+                className="cancel-button"
+                type="button"
+                onClick={
+                  closeDeleteCourse
+                }
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="confirm-delete-button"
+                type="button"
+                onClick={() =>
+                  void confirmDeleteCourse()
+                }
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <LoaderCircle
+                      className="button-spinner"
+                      size={17}
+                    />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2
+                      size={17}
+                    />
+                    Delete course
+                  </>
+                )}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

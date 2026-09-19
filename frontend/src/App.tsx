@@ -5,12 +5,15 @@ import {
 
 import {
   createCourse,
+  deleteCourse,
   getCourses,
   getCurrentUser,
+  updateCourse,
   type AcademicProject,
   type Course,
   type CreateCourseInput,
   type CurrentUser,
+  type UpdateCourseInput,
 } from "./api/auth";
 
 import {
@@ -30,9 +33,10 @@ import {
 } from "./pages/ProjectWorkspacePage";
 
 function App() {
-  const [token, setToken] = useState<string | null>(
-    () => localStorage.getItem("accessToken")
-  );
+  const [token, setToken] =
+    useState<string | null>(() =>
+      localStorage.getItem("accessToken")
+    );
 
   const [user, setUser] =
     useState<CurrentUser | null>(null);
@@ -40,11 +44,17 @@ function App() {
   const [courses, setCourses] =
     useState<Course[]>([]);
 
-  const [selectedCourse, setSelectedCourse] =
-    useState<Course | null>(null);
+  const [
+    selectedCourse,
+    setSelectedCourse,
+  ] = useState<Course | null>(null);
 
-  const [selectedProject, setSelectedProject] =
-    useState<AcademicProject | null>(null);
+  const [
+    selectedProject,
+    setSelectedProject,
+  ] = useState<AcademicProject | null>(
+    null
+  );
 
   const [isLoading, setIsLoading] =
     useState(false);
@@ -52,7 +62,9 @@ function App() {
   const [error, setError] =
     useState<string | null>(null);
 
-  function handleLogin(accessToken: string) {
+  function handleLogin(
+    accessToken: string
+  ) {
     localStorage.setItem(
       "accessToken",
       accessToken
@@ -72,7 +84,9 @@ function App() {
     setError(null);
   }
 
-  function handleCourseSelect(course: Course) {
+  function handleCourseSelect(
+    course: Course
+  ) {
     setSelectedCourse(course);
     setSelectedProject(null);
   }
@@ -110,12 +124,95 @@ function App() {
     } catch (createError) {
       if (
         createError instanceof Error &&
-        createError.message === "SESSION_EXPIRED"
+        createError.message ===
+          "SESSION_EXPIRED"
       ) {
         handleLogout();
       }
 
       throw createError;
+    }
+  }
+
+  async function handleUpdateCourse(
+    courseId: string,
+    input: UpdateCourseInput
+  ) {
+    if (!token) {
+      throw new Error("SESSION_EXPIRED");
+    }
+
+    try {
+      const updatedCourse =
+        await updateCourse(
+          token,
+          courseId,
+          input
+        );
+
+      setCourses((currentCourses) =>
+        currentCourses.map((course) =>
+          course.id === courseId
+            ? updatedCourse
+            : course
+        )
+      );
+
+      setSelectedCourse(
+        (currentCourse) =>
+          currentCourse?.id === courseId
+            ? updatedCourse
+            : currentCourse
+      );
+    } catch (updateError) {
+      if (
+        updateError instanceof Error &&
+        updateError.message ===
+          "SESSION_EXPIRED"
+      ) {
+        handleLogout();
+      }
+
+      throw updateError;
+    }
+  }
+
+  async function handleDeleteCourse(
+    courseId: string
+  ) {
+    if (!token) {
+      throw new Error("SESSION_EXPIRED");
+    }
+
+    try {
+      await deleteCourse(
+        token,
+        courseId
+      );
+
+      setCourses((currentCourses) =>
+        currentCourses.filter(
+          (course) =>
+            course.id !== courseId
+        )
+      );
+
+      if (
+        selectedCourse?.id === courseId
+      ) {
+        setSelectedCourse(null);
+        setSelectedProject(null);
+      }
+    } catch (deleteError) {
+      if (
+        deleteError instanceof Error &&
+        deleteError.message ===
+          "SESSION_EXPIRED"
+      ) {
+        handleLogout();
+      }
+
+      throw deleteError;
     }
   }
 
@@ -131,11 +228,13 @@ function App() {
       setError(null);
 
       try {
-        const [currentUser, courseResults] =
-          await Promise.all([
-            getCurrentUser(token as string),
-            getCourses(token as string),
-          ]);
+        const [
+          currentUser,
+          courseResults,
+        ] = await Promise.all([
+          getCurrentUser(token as string),
+          getCourses(token as string),
+        ]);
 
         if (isCancelled) {
           return;
@@ -153,7 +252,9 @@ function App() {
             ? loadError.message
             : "Unable to load the dashboard.";
 
-        if (message === "SESSION_EXPIRED") {
+        if (
+          message === "SESSION_EXPIRED"
+        ) {
           handleLogout();
           return;
         }
@@ -175,7 +276,9 @@ function App() {
 
   if (!token) {
     return (
-      <LoginPage onLogin={handleLogin} />
+      <LoginPage
+        onLogin={handleLogin}
+      />
     );
   }
 
@@ -185,7 +288,9 @@ function App() {
         <div>
           <div className="loading-spinner" />
 
-          <p>Preparing your workspace...</p>
+          <p>
+            Preparing your workspace...
+          </p>
         </div>
       </main>
     );
@@ -199,7 +304,9 @@ function App() {
             Something went wrong
           </p>
 
-          <h1>Unable to load UniPilot</h1>
+          <h1>
+            Unable to load UniPilot
+          </h1>
 
           <p>
             {error ??
@@ -224,7 +331,9 @@ function App() {
         token={token}
         project={selectedProject}
         onBack={handleBackToCourse}
-        onSessionExpired={handleLogout}
+        onSessionExpired={
+          handleLogout
+        }
       />
     );
   }
@@ -234,9 +343,13 @@ function App() {
       <CourseWorkspacePage
         token={token}
         course={selectedCourse}
-        onProjectSelect={handleProjectSelect}
+        onProjectSelect={
+          handleProjectSelect
+        }
         onBack={handleBackToDashboard}
-        onSessionExpired={handleLogout}
+        onSessionExpired={
+          handleLogout
+        }
       />
     );
   }
@@ -245,8 +358,18 @@ function App() {
     <DashboardPage
       user={user}
       courses={courses}
-      onCourseSelect={handleCourseSelect}
-      onCreateCourse={handleCreateCourse}
+      onCourseSelect={
+        handleCourseSelect
+      }
+      onCreateCourse={
+        handleCreateCourse
+      }
+      onUpdateCourse={
+        handleUpdateCourse
+      }
+      onDeleteCourse={
+        handleDeleteCourse
+      }
       onLogout={handleLogout}
     />
   );

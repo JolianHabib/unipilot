@@ -198,6 +198,81 @@ export async function createCourse(
 
   return (await response.json()) as Course;
 }
+
+export type UpdateCourseInput = {
+  name: string;
+  code: string | null;
+  description: string | null;
+};
+
+export async function updateCourse(
+  token: string,
+  courseId: string,
+  input: UpdateCourseInput
+): Promise<Course> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/courses/${courseId}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    }
+  );
+
+  if (response.status === 401) {
+    throw new Error("SESSION_EXPIRED");
+  }
+
+  if (response.status === 404) {
+    throw new Error("Course not found.");
+  }
+
+  if (response.status === 400) {
+    throw new Error(
+      "Please check the course information."
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      "Unable to update the course."
+    );
+  }
+
+  return (await response.json()) as Course;
+}
+
+export async function deleteCourse(
+  token: string,
+  courseId: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/courses/${courseId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (response.status === 401) {
+    throw new Error("SESSION_EXPIRED");
+  }
+
+  if (response.status === 404) {
+    throw new Error("Course not found.");
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      "Unable to delete the course."
+    );
+  }
+}
 export type AcademicProject = {
   id: string;
   courseId: string;

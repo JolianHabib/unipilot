@@ -2658,3 +2658,119 @@ textarea {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.course-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.course-action-button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  color: #737b91;
+  border: 1px solid #e3e6ef;
+  border-radius: 10px;
+  background: #ffffff;
+  transition:
+    color 150ms ease,
+    border-color 150ms ease,
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.course-action-button:hover {
+  color: #5457d8;
+  border-color: #cfd0ff;
+  background: #f4f4ff;
+  transform: translateY(-1px);
+}
+
+.course-action-button.delete:hover {
+  color: #d92d20;
+  border-color: #fecdca;
+  background: #fff4f3;
+}
+
+.delete-course-modal {
+  position: relative;
+  width: min(430px, calc(100% - 32px));
+  padding: 35px;
+  border: 1px solid #e5e8f0;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow:
+    0 30px 90px rgba(25, 33, 64, 0.2);
+  text-align: center;
+}
+
+.delete-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+}
+
+.delete-modal-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 20px;
+  place-items: center;
+  color: #d92d20;
+  border-radius: 17px;
+  background: #feeceb;
+}
+
+.delete-course-modal h2 {
+  margin: 0 0 12px;
+  color: #172033;
+  font-size: 25px;
+}
+
+.delete-course-modal > p:not(.modal-error) {
+  margin: 0 0 24px;
+  color: #70798f;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.delete-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 11px;
+  margin-top: 24px;
+}
+
+.confirm-delete-button {
+  display: inline-flex;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #ffffff;
+  border: 0;
+  border-radius: 11px;
+  background: #d92d20;
+  font-weight: 750;
+}
+
+.confirm-delete-button:hover:not(:disabled) {
+  background: #b42318;
+}
+
+.confirm-delete-button:disabled {
+  opacity: 0.65;
+}
+
+@media (max-width: 520px) {
+  .delete-course-modal {
+    padding: 31px 21px 22px;
+  }
+
+  .delete-modal-actions {
+    grid-template-columns: 1fr;
+  }
+}

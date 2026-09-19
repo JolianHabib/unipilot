@@ -1,17 +1,19 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using UniPilot.Infrastructure;
 using UniPilot.API.Authentication;
 using UniPilot.Application.Auth;
+using UniPilot.Application.Courses;
 using UniPilot.Application.Tasks;
+using UniPilot.Infrastructure;
+using UniPilot.Infrastructure.Courses;
 using UniPilot.Infrastructure.Tasks;
-var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+var builder =
+    WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(
@@ -35,47 +37,68 @@ builder.Services.AddCors(options =>
                 .AllowAnyMethod();
         });
 });
-builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.AddInfrastructure(
+    builder.Configuration);
+
+builder.Services.AddScoped<
+    ICourseService,
+    CourseService>();
+
 builder.Services.AddScoped<
     IProjectTaskService,
     ProjectTaskService>();
-var jwtKey = builder.Configuration["Jwt:Key"]
-    ?? throw new InvalidOperationException("JWT key was not configured.");
 
-var jwtIssuer = builder.Configuration["Jwt:Issuer"]
-    ?? throw new InvalidOperationException("JWT issuer was not configured.");
+var jwtKey =
+    builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException(
+        "JWT key was not configured.");
 
-var jwtAudience = builder.Configuration["Jwt:Audience"]
-    ?? throw new InvalidOperationException("JWT audience was not configured.");
+var jwtIssuer =
+    builder.Configuration["Jwt:Issuer"]
+    ?? throw new InvalidOperationException(
+        "JWT issuer was not configured.");
+
+var jwtAudience =
+    builder.Configuration["Jwt:Audience"]
+    ?? throw new InvalidOperationException(
+        "JWT audience was not configured.");
 
 builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddAuthentication(
+        JwtBearerDefaults
+            .AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = jwtIssuer,
+        options.TokenValidationParameters =
+            new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = jwtIssuer,
 
-            ValidateAudience = true,
-            ValidAudience = jwtAudience,
+                ValidateAudience = true,
+                ValidAudience = jwtAudience,
 
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Convert.FromBase64String(jwtKey)),
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey =
+                    new SymmetricSecurityKey(
+                        Convert.FromBase64String(
+                            jwtKey)),
 
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
-        };
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero
+            };
     });
-builder.Services.AddSingleton<ITokenService, JwtTokenService>();
+
+builder.Services.AddSingleton<
+    ITokenService,
+    JwtTokenService>();
 
 builder.Services.AddAuthorization();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -86,12 +109,12 @@ app.UseHttpsRedirection();
 app.UseCors("Frontend");
 
 app.UseAuthentication();
-
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
+
 public partial class Program
 {
 }

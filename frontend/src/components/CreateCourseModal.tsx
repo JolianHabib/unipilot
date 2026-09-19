@@ -11,21 +11,24 @@ import {
 } from "lucide-react";
 
 import type {
+  Course,
   CreateCourseInput,
 } from "../api/auth";
 
 type CreateCourseModalProps = {
   isOpen: boolean;
+  course?: Course | null;
   onClose: () => void;
-  onCreate: (
+  onSave: (
     input: CreateCourseInput
   ) => Promise<void>;
 };
 
 export function CreateCourseModal({
   isOpen,
+  course = null,
   onClose,
-  onCreate,
+  onSave,
 }: CreateCourseModalProps) {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -38,24 +41,34 @@ export function CreateCourseModal({
   const [error, setError] =
     useState<string | null>(null);
 
+  const isEditing = course !== null;
+
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
-    setName("");
-    setCode("");
-    setDescription("");
+    setName(course?.name ?? "");
+    setCode(course?.code ?? "");
+    setDescription(
+      course?.description ?? ""
+    );
     setError(null);
-  }, [isOpen]);
+    setIsSubmitting(false);
+  }, [isOpen, course]);
 
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
+    function handleEscape(
+      event: KeyboardEvent
+    ) {
+      if (
+        event.key === "Escape" &&
+        !isSubmitting
+      ) {
         onClose();
       }
     }
@@ -71,7 +84,7 @@ export function CreateCourseModal({
         handleEscape
       );
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, isSubmitting, onClose]);
 
   if (!isOpen) {
     return null;
@@ -93,7 +106,7 @@ export function CreateCourseModal({
     setError(null);
 
     try {
-      await onCreate({
+      await onSave({
         name: trimmedName,
         code: code.trim() || null,
         description:
@@ -105,7 +118,9 @@ export function CreateCourseModal({
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Unable to create the course."
+          : isEditing
+            ? "Unable to update the course."
+            : "Unable to create the course."
       );
     } finally {
       setIsSubmitting(false);
@@ -116,7 +131,11 @@ export function CreateCourseModal({
     <div
       className="modal-backdrop"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
+        if (
+          event.target ===
+            event.currentTarget &&
+          !isSubmitting
+        ) {
           onClose();
         }
       }}
@@ -125,7 +144,7 @@ export function CreateCourseModal({
         className="course-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="create-course-title"
+        aria-labelledby="course-modal-title"
       >
         <header className="course-modal-header">
           <div className="modal-heading-icon">
@@ -133,13 +152,16 @@ export function CreateCourseModal({
           </div>
 
           <div>
-            <h2 id="create-course-title">
-              Create a new course
+            <h2 id="course-modal-title">
+              {isEditing
+                ? "Edit course"
+                : "Create a new course"}
             </h2>
 
             <p>
-              Add a course to organize your
-              academic projects.
+              {isEditing
+                ? "Update your course information."
+                : "Add a course to organize your academic projects."}
             </p>
           </div>
 
@@ -148,6 +170,7 @@ export function CreateCourseModal({
             onClick={onClose}
             type="button"
             aria-label="Close"
+            disabled={isSubmitting}
           >
             <X size={20} />
           </button>
@@ -170,7 +193,9 @@ export function CreateCourseModal({
               }
               placeholder="Example: Software Engineering"
               maxLength={150}
+              disabled={isSubmitting}
               autoFocus
+              required
             />
           </div>
 
@@ -188,6 +213,7 @@ export function CreateCourseModal({
               }
               placeholder="Example: SE-2026"
               maxLength={50}
+              disabled={isSubmitting}
             />
           </div>
 
@@ -201,16 +227,22 @@ export function CreateCourseModal({
               id="course-description"
               value={description}
               onChange={(event) =>
-                setDescription(event.target.value)
+                setDescription(
+                  event.target.value
+                )
               }
               placeholder="What is this course about?"
               maxLength={1000}
               rows={4}
+              disabled={isSubmitting}
             />
           </div>
 
           {error && (
-            <p className="modal-error">
+            <p
+              className="modal-error"
+              role="alert"
+            >
               {error}
             </p>
           )}
@@ -236,8 +268,13 @@ export function CreateCourseModal({
                     className="button-spinner"
                     size={17}
                   />
-                  Creating...
+
+                  {isEditing
+                    ? "Saving..."
+                    : "Creating..."}
                 </>
+              ) : isEditing ? (
+                "Save changes"
               ) : (
                 "Create course"
               )}
