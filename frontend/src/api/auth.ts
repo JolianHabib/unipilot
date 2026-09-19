@@ -19,7 +19,64 @@ export type Course = {
 type LoginResponse = {
   accessToken: string;
 };
+type ApiErrorResponse = {
+  message?: string;
+};
 
+export async function register(
+  fullName: string,
+  email: string,
+  password: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/auth/register`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fullName,
+        email,
+        password,
+      }),
+    }
+  );
+
+  if (response.ok) {
+    return;
+  }
+
+  let serverMessage: string | null = null;
+
+  try {
+    const errorBody =
+      (await response.json()) as ApiErrorResponse;
+
+    serverMessage = errorBody.message ?? null;
+  } catch {
+    serverMessage = null;
+  }
+
+  if (response.status === 409) {
+    throw new Error(
+      serverMessage ??
+        "An account with this email already exists."
+    );
+  }
+
+  if (response.status === 400) {
+    throw new Error(
+      serverMessage ??
+        "Please check your registration information."
+    );
+  }
+
+  throw new Error(
+    serverMessage ??
+      "Unable to create your account. Please try again."
+  );
+}
 export async function login(
   email: string,
   password: string

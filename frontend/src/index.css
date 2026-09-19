@@ -2593,4 +2593,68 @@ textarea {
 
 .task-card-top .task-delete-button {
   margin-left: 0;
+  .auth-switch-button {
+  margin: 0 0 0 5px;
+  padding: 0;
+  color: #5457d8;
+  border: 0;
+  background: transparent;
+  font-size: inherit;
+  font-weight: 750;
+}
+
+.auth-switch-button:hover:not(:disabled) {
+  color: #4144c2;
+  text-decoration: underline;
+}
+
+.auth-switch-button:focus-visible {
+  border-radius: 4px;
+  outline: 3px solid rgba(84, 87, 216, 0.2);
+  outline-offset: 3px;
+}
+
+.auth-switch-button:disabled {
+  opacity: 0.6;
+}
+
+.login-card form input:disabled {
+  color: #8a92a4;
+  background: #f5f6f9;
+}
+}
+
+.register-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 24px 0 0;
+  color: #8a92a4;
+  font-size: 12px;
+  text-align: center;
+}
+
+.register-note .auth-switch-button {
+  all: unset;
+  display: inline;
+  color: #5457d8;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.register-note .auth-switch-button:hover {
+  color: #4144c2;
+  text-decoration: underline;
+}
+
+.register-note .auth-switch-button:focus-visible {
+  border-radius: 4px;
+  outline: 3px solid rgba(84, 87, 216, 0.2);
+  outline-offset: 3px;
+}
+
+.register-note .auth-switch-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

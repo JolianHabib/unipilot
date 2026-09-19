@@ -10,22 +10,52 @@ import {
   KanbanSquare,
 } from "lucide-react";
 
-import { login } from "../api/auth";
+import {
+  login,
+  register,
+} from "../api/auth";
 
 type LoginPageProps = {
   onLogin: (token: string) => void;
 };
 
+type AuthMode = "login" | "register";
+
 export function LoginPage({
   onLogin,
 }: LoginPageProps) {
-  const [email, setEmail] = useState("");
+  const [mode, setMode] =
+    useState<AuthMode>("login");
+
+  const [fullName, setFullName] =
+    useState("");
+
+  const [email, setEmail] =
+    useState("");
+
   const [password, setPassword] =
     useState("");
 
-  const [error, setError] = useState("");
+  const [
+    confirmPassword,
+    setConfirmPassword,
+  ] = useState("");
+
+  const [error, setError] =
+    useState("");
+
   const [isLoading, setIsLoading] =
     useState(false);
+
+  const isRegisterMode =
+    mode === "register";
+
+  function changeMode(nextMode: AuthMode) {
+    setMode(nextMode);
+    setError("");
+    setPassword("");
+    setConfirmPassword("");
+  }
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -33,20 +63,53 @@ export function LoginPage({
     event.preventDefault();
 
     setError("");
+
+    const normalizedEmail =
+      email.trim().toLowerCase();
+
+    if (isRegisterMode) {
+      if (!fullName.trim()) {
+        setError("Please enter your full name.");
+        return;
+      }
+
+      if (password.length < 8) {
+        setError(
+          "Password must contain at least 8 characters."
+        );
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
-      const token = await login(
-        email.trim(),
+      if (isRegisterMode) {
+        await register(
+          fullName.trim(),
+          normalizedEmail,
+          password
+        );
+      }
+
+      const accessToken = await login(
+        normalizedEmail,
         password
       );
 
-      onLogin(token);
+      onLogin(accessToken);
     } catch (exception) {
       setError(
         exception instanceof Error
           ? exception.message
-          : "Unable to sign in."
+          : isRegisterMode
+            ? "Unable to create your account."
+            : "Unable to sign in."
       );
     } finally {
       setIsLoading(false);
@@ -128,17 +191,47 @@ export function LoginPage({
           </div>
 
           <p className="eyebrow">
-            Welcome back
+            {isRegisterMode
+              ? "Create your account"
+              : "Welcome back"}
           </p>
 
-          <h2>Sign in to your workspace</h2>
+          <h2>
+            {isRegisterMode
+              ? "Start your UniPilot workspace"
+              : "Sign in to your workspace"}
+          </h2>
 
           <p className="form-intro">
-            Continue managing your courses,
-            projects, and requirements.
+            {isRegisterMode
+              ? "Create an account to organize your courses, projects, and requirements."
+              : "Continue managing your courses, projects, and requirements."}
           </p>
 
           <form onSubmit={handleSubmit}>
+            {isRegisterMode && (
+              <>
+                <label htmlFor="fullName">
+                  Full name
+                </label>
+
+                <input
+                  id="fullName"
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Your full name"
+                  value={fullName}
+                  onChange={(event) =>
+                    setFullName(
+                      event.target.value
+                    )
+                  }
+                  disabled={isLoading}
+                  required
+                />
+              </>
+            )}
+
             <label htmlFor="email">
               Email address
             </label>
@@ -152,6 +245,7 @@ export function LoginPage({
               onChange={(event) =>
                 setEmail(event.target.value)
               }
+              disabled={isLoading}
               required
             />
 
@@ -162,17 +256,58 @@ export function LoginPage({
             <input
               id="password"
               type="password"
-              autoComplete="current-password"
-              placeholder="Enter your password"
+              autoComplete={
+                isRegisterMode
+                  ? "new-password"
+                  : "current-password"
+              }
+              placeholder={
+                isRegisterMode
+                  ? "At least 8 characters"
+                  : "Enter your password"
+              }
               value={password}
               onChange={(event) =>
-                setPassword(event.target.value)
+                setPassword(
+                  event.target.value
+                )
+              }
+              disabled={isLoading}
+              minLength={
+                isRegisterMode ? 8 : undefined
               }
               required
             />
 
+            {isRegisterMode && (
+              <>
+                <label htmlFor="confirmPassword">
+                  Confirm password
+                </label>
+
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Enter your password again"
+                  value={confirmPassword}
+                  onChange={(event) =>
+                    setConfirmPassword(
+                      event.target.value
+                    )
+                  }
+                  disabled={isLoading}
+                  minLength={8}
+                  required
+                />
+              </>
+            )}
+
             {error && (
-              <div className="form-error">
+              <div
+                className="form-error"
+                role="alert"
+              >
                 {error}
               </div>
             )}
@@ -184,8 +319,12 @@ export function LoginPage({
             >
               <span>
                 {isLoading
-                  ? "Signing in..."
-                  : "Sign in"}
+                  ? isRegisterMode
+                    ? "Creating account..."
+                    : "Signing in..."
+                  : isRegisterMode
+                    ? "Create account"
+                    : "Sign in"}
               </span>
 
               {!isLoading && (
@@ -195,8 +334,26 @@ export function LoginPage({
           </form>
 
           <p className="register-note">
-            New to UniPilot? Registration is
-            coming next.
+            {isRegisterMode
+              ? "Already have an account?"
+              : "New to UniPilot?"}
+
+            <button
+              className="auth-switch-button"
+              type="button"
+              onClick={() =>
+                changeMode(
+                  isRegisterMode
+                    ? "login"
+                    : "register"
+                )
+              }
+              disabled={isLoading}
+            >
+              {isRegisterMode
+                ? "Sign in"
+                : "Create an account"}
+            </button>
           </p>
         </div>
       </section>
