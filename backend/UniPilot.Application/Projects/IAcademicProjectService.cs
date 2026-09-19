@@ -6,8 +6,18 @@ public interface IAcademicProjectService
         CreateAcademicProjectCommand command,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<AcademicProjectResult>?> GetByCourseAsync(
+    Task<IReadOnlyList<AcademicProjectResult>?>
+        GetByCourseAsync(
+            Guid ownerId,
+            Guid courseId,
+            CancellationToken cancellationToken = default);
+
+    Task<AcademicProjectResult?> UpdateAsync(
+        UpdateAcademicProjectCommand command,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> DeleteAsync(
         Guid ownerId,
-        Guid courseId,
+        Guid academicProjectId,
         CancellationToken cancellationToken = default);
 }

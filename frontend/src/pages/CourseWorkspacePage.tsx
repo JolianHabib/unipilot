@@ -9,14 +9,26 @@ import {
   CalendarDays,
   ChevronRight,
   FolderKanban,
+  LoaderCircle,
+  Pencil,
   Plus,
+  Trash2,
+  X,
 } from "lucide-react";
 
 import {
+  createProject,
+  deleteProject,
   getProjectsByCourse,
+  updateProject,
   type AcademicProject,
   type Course,
+  type SaveProjectInput,
 } from "../api/auth";
+
+import {
+  ProjectModal,
+} from "../components/ProjectModal";
 
 type CourseWorkspacePageProps = {
   token: string;
@@ -35,15 +47,41 @@ export function CourseWorkspacePage({
   onBack,
   onSessionExpired,
 }: CourseWorkspacePageProps) {
-  const [projects, setProjects] = useState<
-    AcademicProject[]
-  >([]);
+  const [projects, setProjects] =
+    useState<AcademicProject[]>([]);
 
   const [isLoading, setIsLoading] =
     useState(true);
 
   const [error, setError] =
     useState<string | null>(null);
+
+  const [
+    isCreateProjectOpen,
+    setIsCreateProjectOpen,
+  ] = useState(false);
+
+  const [
+    editingProject,
+    setEditingProject,
+  ] = useState<AcademicProject | null>(
+    null
+  );
+
+  const [
+    deletingProject,
+    setDeletingProject,
+  ] = useState<AcademicProject | null>(
+    null
+  );
+
+  const [isDeleting, setIsDeleting] =
+    useState(false);
+
+  const [
+    deleteError,
+    setDeleteError,
+  ] = useState<string | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -72,7 +110,9 @@ export function CourseWorkspacePage({
             ? loadError.message
             : "Unable to load projects.";
 
-        if (message === "SESSION_EXPIRED") {
+        if (
+          message === "SESSION_EXPIRED"
+        ) {
           onSessionExpired();
           return;
         }
@@ -109,8 +149,140 @@ export function CourseWorkspacePage({
         day: "numeric",
         month: "short",
         year: "numeric",
+        timeZone: "UTC",
       }
     ).format(new Date(value));
+  }
+
+  function handleSessionError(
+    requestError: unknown
+  ) {
+    if (
+      requestError instanceof Error &&
+      requestError.message ===
+        "SESSION_EXPIRED"
+    ) {
+      onSessionExpired();
+    }
+  }
+
+  function openCreateProject() {
+    setEditingProject(null);
+    setIsCreateProjectOpen(true);
+  }
+
+  function openEditProject(
+    project: AcademicProject
+  ) {
+    setIsCreateProjectOpen(false);
+    setEditingProject(project);
+  }
+
+  function closeProjectModal() {
+    setIsCreateProjectOpen(false);
+    setEditingProject(null);
+  }
+
+  async function handleCreateProject(
+    input: SaveProjectInput
+  ) {
+    try {
+      const project =
+        await createProject(
+          token,
+          course.id,
+          input
+        );
+
+      setProjects(
+        (currentProjects) => [
+          project,
+          ...currentProjects,
+        ]
+      );
+    } catch (requestError) {
+      handleSessionError(requestError);
+      throw requestError;
+    }
+  }
+
+  async function handleUpdateProject(
+    projectId: string,
+    input: SaveProjectInput
+  ) {
+    try {
+      const updatedProject =
+        await updateProject(
+          token,
+          course.id,
+          projectId,
+          input
+        );
+
+      setProjects((currentProjects) =>
+        currentProjects.map((project) =>
+          project.id === projectId
+            ? updatedProject
+            : project
+        )
+      );
+    } catch (requestError) {
+      handleSessionError(requestError);
+      throw requestError;
+    }
+  }
+
+  function openDeleteProject(
+    project: AcademicProject
+  ) {
+    setDeletingProject(project);
+    setDeleteError(null);
+  }
+
+  function closeDeleteProject() {
+    if (isDeleting) {
+      return;
+    }
+
+    setDeletingProject(null);
+    setDeleteError(null);
+  }
+
+  async function confirmDeleteProject() {
+    if (!deletingProject) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await deleteProject(
+        token,
+        course.id,
+        deletingProject.id
+      );
+
+      setProjects((currentProjects) =>
+        currentProjects.filter(
+          (project) =>
+            project.id !==
+            deletingProject.id
+        )
+      );
+
+      setDeletingProject(null);
+    } catch (requestError) {
+      handleSessionError(requestError);
+
+      setDeleteError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to delete the project."
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   return (
@@ -153,6 +325,7 @@ export function CourseWorkspacePage({
           <button
             className="new-project-button"
             type="button"
+            onClick={openCreateProject}
           >
             <Plus size={18} />
             New project
@@ -165,8 +338,8 @@ export function CourseWorkspacePage({
               <h2>Course projects</h2>
 
               <p>
-                Manage projects, documents, and
-                extracted requirements.
+                Manage projects, documents,
+                and extracted requirements.
               </p>
             </div>
 
@@ -189,7 +362,10 @@ export function CourseWorkspacePage({
 
           {!isLoading && error && (
             <div className="workspace-message error">
-              <h3>Unable to load projects</h3>
+              <h3>
+                Unable to load projects
+              </h3>
+
               <p>{error}</p>
             </div>
           )}
@@ -199,19 +375,25 @@ export function CourseWorkspacePage({
             projects.length === 0 && (
               <div className="empty-projects">
                 <div className="empty-projects-icon">
-                  <FolderKanban size={28} />
+                  <FolderKanban
+                    size={28}
+                  />
                 </div>
 
-                <h3>Create your first project</h3>
+                <h3>
+                  Create your first project
+                </h3>
 
                 <p>
                   Projects keep documents,
-                  requirements, and tasks organized.
+                  requirements, and tasks
+                  organized.
                 </p>
 
                 <button
                   className="new-project-button"
                   type="button"
+                  onClick={openCreateProject}
                 >
                   <Plus size={18} />
                   New project
@@ -224,28 +406,99 @@ export function CourseWorkspacePage({
             projects.length > 0 && (
               <div className="projects-grid">
                 {projects.map((project) => (
-                  <button
+                  <article
                     className="project-card"
-                    type="button"
                     key={project.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() =>
-                      onProjectSelect(project)
+                      onProjectSelect(
+                        project
+                      )
                     }
+                    onKeyDown={(event) => {
+                      if (
+                        event.target !==
+                        event.currentTarget
+                      ) {
+                        return;
+                      }
+
+                      if (
+                        event.key ===
+                          "Enter" ||
+                        event.key === " "
+                      ) {
+                        event.preventDefault();
+
+                        onProjectSelect(
+                          project
+                        );
+                      }
+                    }}
                   >
                     <div className="project-card-header">
                       <div className="project-folder-icon">
-                        <FolderKanban size={21} />
+                        <FolderKanban
+                          size={21}
+                        />
                       </div>
 
-                      <span
-                        className={`project-status status-${project.status.toLowerCase()}`}
-                      >
-                        {project.status}
-                      </span>
+                      <div className="project-header-right">
+                        <span
+                          className={`project-status status-${project.status.toLowerCase()}`}
+                        >
+                          {project.status}
+                        </span>
+
+                        <div className="project-card-actions">
+                          <button
+                            className="project-action-button"
+                            type="button"
+                            title="Edit project"
+                            aria-label={`Edit ${project.title}`}
+                            onClick={(
+                              event
+                            ) => {
+                              event.stopPropagation();
+
+                              openEditProject(
+                                project
+                              );
+                            }}
+                          >
+                            <Pencil
+                              size={16}
+                            />
+                          </button>
+
+                          <button
+                            className="project-action-button delete"
+                            type="button"
+                            title="Delete project"
+                            aria-label={`Delete ${project.title}`}
+                            onClick={(
+                              event
+                            ) => {
+                              event.stopPropagation();
+
+                              openDeleteProject(
+                                project
+                              );
+                            }}
+                          >
+                            <Trash2
+                              size={16}
+                            />
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="project-card-body">
-                      <h3>{project.title}</h3>
+                      <h3>
+                        {project.title}
+                      </h3>
 
                       <p>
                         {project.description ??
@@ -255,21 +508,134 @@ export function CourseWorkspacePage({
 
                     <div className="project-card-footer">
                       <span>
-                        <CalendarDays size={15} />
+                        <CalendarDays
+                          size={15}
+                        />
 
                         {formatDate(
                           project.dueDateUtc
                         )}
                       </span>
 
-                      <ChevronRight size={18} />
+                      <ChevronRight
+                        size={18}
+                      />
                     </div>
-                  </button>
+                  </article>
                 ))}
               </div>
             )}
         </section>
       </div>
+
+      <ProjectModal
+        isOpen={
+          isCreateProjectOpen ||
+          editingProject !== null
+        }
+        project={editingProject}
+        onClose={closeProjectModal}
+        onSave={(input) =>
+          editingProject
+            ? handleUpdateProject(
+                editingProject.id,
+                input
+              )
+            : handleCreateProject(input)
+        }
+      />
+
+      {deletingProject && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              closeDeleteProject();
+            }
+          }}
+        >
+          <section
+            className="delete-course-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-project-title"
+          >
+            <button
+              className="modal-close-button delete-modal-close"
+              type="button"
+              onClick={closeDeleteProject}
+              disabled={isDeleting}
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="delete-modal-icon">
+              <Trash2 size={25} />
+            </div>
+
+            <h2 id="delete-project-title">
+              Delete project?
+            </h2>
+
+            <p>
+              <strong>
+                {deletingProject.title}
+              </strong>{" "}
+              and all its PDFs,
+              requirements, and tasks will
+              be permanently deleted.
+            </p>
+
+            {deleteError && (
+              <p
+                className="modal-error"
+                role="alert"
+              >
+                {deleteError}
+              </p>
+            )}
+
+            <div className="delete-modal-actions">
+              <button
+                className="cancel-button"
+                type="button"
+                onClick={closeDeleteProject}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="confirm-delete-button"
+                type="button"
+                onClick={() =>
+                  void confirmDeleteProject()
+                }
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <LoaderCircle
+                      className="button-spinner"
+                      size={17}
+                    />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={17} />
+                    Delete project
+                  </>
+                )}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

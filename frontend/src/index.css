@@ -2774,3 +2774,60 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+.project-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.project-card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.project-action-button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  color: #737b91;
+  border: 1px solid #e3e6ef;
+  border-radius: 9px;
+  background: #ffffff;
+  transition:
+    color 150ms ease,
+    border-color 150ms ease,
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.project-action-button:hover {
+  color: #5457d8;
+  border-color: #cfd0ff;
+  background: #f4f4ff;
+  transform: translateY(-1px);
+}
+
+.project-action-button.delete:hover {
+  color: #d92d20;
+  border-color: #fecdca;
+  background: #fff4f3;
+}
+
+.project-card {
+  cursor: pointer;
+}
+
+.project-card:focus-visible {
+  outline: 3px solid
+    rgba(84, 87, 216, 0.2);
+  outline-offset: 3px;
+}
+
+@media (max-width: 620px) {
+  .project-header-right {
+    align-items: flex-end;
+    flex-direction: column-reverse;
+  }
+}

@@ -312,6 +312,126 @@ export async function getProjectsByCourse(
 
   return (await response.json()) as AcademicProject[];
 }
+export type SaveProjectInput = {
+  title: string;
+  description: string | null;
+  dueDateUtc: string | null;
+};
+
+export async function createProject(
+  token: string,
+  courseId: string,
+  input: SaveProjectInput
+): Promise<AcademicProject> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/courses/${courseId}/projects`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    }
+  );
+
+  if (response.status === 401) {
+    throw new Error("SESSION_EXPIRED");
+  }
+
+  if (response.status === 404) {
+    throw new Error("Course not found.");
+  }
+
+  if (response.status === 400) {
+    throw new Error(
+      "Please check the project information."
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      "Unable to create the project."
+    );
+  }
+
+  return (
+    await response.json()
+  ) as AcademicProject;
+}
+
+export async function updateProject(
+  token: string,
+  courseId: string,
+  projectId: string,
+  input: SaveProjectInput
+): Promise<AcademicProject> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/courses/${courseId}/projects/${projectId}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    }
+  );
+
+  if (response.status === 401) {
+    throw new Error("SESSION_EXPIRED");
+  }
+
+  if (response.status === 404) {
+    throw new Error("Project not found.");
+  }
+
+  if (response.status === 400) {
+    throw new Error(
+      "Please check the project information."
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      "Unable to update the project."
+    );
+  }
+
+  return (
+    await response.json()
+  ) as AcademicProject;
+}
+
+export async function deleteProject(
+  token: string,
+  courseId: string,
+  projectId: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/courses/${courseId}/projects/${projectId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (response.status === 401) {
+    throw new Error("SESSION_EXPIRED");
+  }
+
+  if (response.status === 404) {
+    throw new Error("Project not found.");
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      "Unable to delete the project."
+    );
+  }
+}
 export type ProjectDocument = {
   id: string;
   academicProjectId: string;
