@@ -2,6 +2,10 @@ namespace UniPilot.Application.Requirements;
 
 public interface IProjectRequirementService
 {
+    Task<IReadOnlyList<ProjectRequirementResult>>
+    GetByOwnerAsync(
+        Guid ownerId,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ProjectRequirementResult>?>
         GetByProjectAsync(
             Guid ownerId,

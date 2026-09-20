@@ -200,9 +200,8 @@ public sealed class AcademicProjectsController(
         out Guid userId)
     {
         var value =
-            User.FindFirst(
-                ClaimTypes.NameIdentifier)
-                ?.Value;
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
 
         return Guid.TryParse(
             value,

@@ -12,6 +12,11 @@ public interface IAcademicProjectService
             Guid courseId,
             CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<AcademicProjectResult>>
+        GetByOwnerAsync(
+            Guid ownerId,
+            CancellationToken cancellationToken = default);
+
     Task<AcademicProjectResult?> UpdateAsync(
         UpdateAcademicProjectCommand command,
         CancellationToken cancellationToken = default);

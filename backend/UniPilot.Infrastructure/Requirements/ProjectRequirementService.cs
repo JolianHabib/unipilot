@@ -51,6 +51,35 @@ public sealed class ProjectRequirementService(
                     requirement.CreatedAtUtc))
             .ToListAsync(cancellationToken);
     }
+    public async Task<
+    IReadOnlyList<ProjectRequirementResult>>
+    GetByOwnerAsync(
+        Guid ownerId,
+        CancellationToken cancellationToken = default)
+{
+    return await dbContext.ProjectRequirements
+        .AsNoTracking()
+        .Where(requirement =>
+            requirement
+                .AcademicProject
+                .Course
+                .OwnerId == ownerId)
+        .OrderByDescending(requirement =>
+            requirement.CreatedAtUtc)
+        .Select(requirement =>
+            new ProjectRequirementResult(
+                requirement.Id,
+                requirement.AcademicProjectId,
+                requirement.ProjectDocumentId,
+                requirement.SourcePageNumber,
+                requirement.Title,
+                requirement.Description,
+                requirement.Type.ToString(),
+                requirement.Priority.ToString(),
+                requirement.IsCompleted,
+                requirement.CreatedAtUtc))
+        .ToListAsync(cancellationToken);
+}
 
     public async Task<IReadOnlyList<ProjectRequirementResult>?>
         ExtractFromDocumentAsync(

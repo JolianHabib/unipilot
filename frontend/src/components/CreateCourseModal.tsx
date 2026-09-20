@@ -19,7 +19,10 @@ type CreateCourseModalProps = {
   isOpen: boolean;
   course?: Course | null;
   onClose: () => void;
-  onSave: (
+  onCreate?: (
+    input: CreateCourseInput
+  ) => Promise<void>;
+  onSave?: (
     input: CreateCourseInput
   ) => Promise<void>;
 };
@@ -28,6 +31,7 @@ export function CreateCourseModal({
   isOpen,
   course = null,
   onClose,
+  onCreate,
   onSave,
 }: CreateCourseModalProps) {
   const [name, setName] = useState("");
@@ -84,7 +88,11 @@ export function CreateCourseModal({
         handleEscape
       );
     };
-  }, [isOpen, isSubmitting, onClose]);
+  }, [
+    isOpen,
+    isSubmitting,
+    onClose,
+  ]);
 
   if (!isOpen) {
     return null;
@@ -98,20 +106,40 @@ export function CreateCourseModal({
     const trimmedName = name.trim();
 
     if (!trimmedName) {
-      setError("Course name is required.");
+      setError(
+        "Course name is required."
+      );
       return;
     }
+
+    const input: CreateCourseInput = {
+      name: trimmedName,
+      code: code.trim() || null,
+      description:
+        description.trim() || null,
+    };
 
     setIsSubmitting(true);
     setError(null);
 
     try {
-      await onSave({
-        name: trimmedName,
-        code: code.trim() || null,
-        description:
-          description.trim() || null,
-      });
+      if (isEditing) {
+        if (!onSave) {
+          throw new Error(
+            "Course update action is unavailable."
+          );
+        }
+
+        await onSave(input);
+      } else {
+        if (!onCreate) {
+          throw new Error(
+            "Course creation action is unavailable."
+          );
+        }
+
+        await onCreate(input);
+      }
 
       onClose();
     } catch (submitError) {
@@ -189,7 +217,9 @@ export function CreateCourseModal({
               id="course-name"
               value={name}
               onChange={(event) =>
-                setName(event.target.value)
+                setName(
+                  event.target.value
+                )
               }
               placeholder="Example: Software Engineering"
               maxLength={150}
@@ -209,7 +239,9 @@ export function CreateCourseModal({
               id="course-code"
               value={code}
               onChange={(event) =>
-                setCode(event.target.value)
+                setCode(
+                  event.target.value
+                )
               }
               placeholder="Example: SE-2026"
               maxLength={50}

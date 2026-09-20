@@ -90,7 +90,29 @@ public sealed class AcademicProjectService(
                     project.CreatedAtUtc))
             .ToListAsync(cancellationToken);
     }
-
+public async Task<
+    IReadOnlyList<AcademicProjectResult>>
+    GetByOwnerAsync(
+        Guid ownerId,
+        CancellationToken cancellationToken = default)
+{
+    return await dbContext.AcademicProjects
+        .AsNoTracking()
+        .Where(project =>
+            project.Course.OwnerId == ownerId)
+        .OrderByDescending(project =>
+            project.CreatedAtUtc)
+        .Select(project =>
+            new AcademicProjectResult(
+                project.Id,
+                project.CourseId,
+                project.Title,
+                project.Description,
+                project.DueDateUtc,
+                project.Status.ToString(),
+                project.CreatedAtUtc))
+        .ToListAsync(cancellationToken);
+}
     public async Task<AcademicProjectResult?>
         UpdateAsync(
             UpdateAcademicProjectCommand command,
