@@ -8,6 +8,8 @@ using UniPilot.Application.Tasks;
 using UniPilot.Infrastructure;
 using UniPilot.Infrastructure.Courses;
 using UniPilot.Infrastructure.Tasks;
+using UniPilot.Application.Users;
+using UniPilot.Infrastructure.Users;
 
 var builder =
     WebApplication.CreateBuilder(args);
@@ -48,7 +50,9 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IProjectTaskService,
     ProjectTaskService>();
-
+builder.Services.AddScoped<
+    IUserAccountService,
+    UserAccountService>();
 var jwtKey =
     builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException(

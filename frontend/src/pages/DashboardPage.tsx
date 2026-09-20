@@ -16,11 +16,13 @@ import {
   Pencil,
   Plus,
   Search,
+  Settings,
   Sparkles,
   Trash2,
   X,
 } from "lucide-react";
 import { CreateCourseModal } from "../components/CreateCourseModal";
+import { ProfileModal } from "../components/ProfileModal";
 import {
   getWorkspaceProjects,
   getWorkspaceRequirements,
@@ -45,6 +47,7 @@ type DashboardPageProps = {
   onCreateCourse: (input: CreateCourseInput) => Promise<void>;
   onUpdateCourse: (courseId: string, input: UpdateCourseInput) => Promise<void>;
   onDeleteCourse: (courseId: string) => Promise<void>;
+  onUserUpdated: (user: CurrentUser) => void;
   onLogout: () => void;
 };
 
@@ -57,6 +60,7 @@ export function DashboardPage({
   onCreateCourse,
   onUpdateCourse,
   onDeleteCourse,
+  onUserUpdated,
   onLogout,
 }: DashboardPageProps) {
   const [section, setSection] = useState<Section>("overview");
@@ -68,6 +72,7 @@ export function DashboardPage({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [deletingCourse, setDeletingCourse] = useState<Course | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,7 +161,15 @@ export function DashboardPage({
 
         <div className="sidebar-profile">
           <div className="profile-avatar">{initials}</div>
-          <div className="profile-details"><strong>{user.fullName}</strong><span>{user.email}</span></div>
+          <button
+            className="profile-details profile-settings-button"
+            type="button"
+            onClick={() => setIsProfileOpen(true)}
+          >
+            <strong>{user.fullName}</strong>
+            <span>{user.email}</span>
+            <Settings size={15} />
+          </button>
           <button className="sidebar-logout" type="button" onClick={onLogout} aria-label="Sign out"><LogOut size={18} /></button>
         </div>
       </aside>
@@ -219,6 +232,14 @@ export function DashboardPage({
       <CreateCourseModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onCreate={onCreateCourse} />
       {editingCourse && <EditCourseModal course={editingCourse} onClose={() => setEditingCourse(null)} onSave={onUpdateCourse} />}
       {deletingCourse && <DeleteCourseModal course={deletingCourse} onClose={() => setDeletingCourse(null)} onDelete={onDeleteCourse} />}
+      <ProfileModal
+        isOpen={isProfileOpen}
+        token={token}
+        user={user}
+        onClose={() => setIsProfileOpen(false)}
+        onUserUpdated={onUserUpdated}
+        onSessionExpired={onLogout}
+      />
     </div>
   );
 }
