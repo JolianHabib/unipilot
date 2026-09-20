@@ -6,13 +6,21 @@ public interface IProjectDocumentService
         UploadProjectDocumentCommand command,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<ProjectDocumentResult>?> GetByProjectAsync(
+    Task<IReadOnlyList<ProjectDocumentResult>?>
+        GetByProjectAsync(
+            Guid ownerId,
+            Guid academicProjectId,
+            CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DocumentPageResult>?>
+        GetPagesAsync(
+            Guid ownerId,
+            Guid documentId,
+            CancellationToken cancellationToken = default);
+
+    Task<bool> DeleteAsync(
         Guid ownerId,
         Guid academicProjectId,
-        CancellationToken cancellationToken = default);
-
-    Task<IReadOnlyList<DocumentPageResult>?> GetPagesAsync(
-        Guid ownerId,
         Guid documentId,
         CancellationToken cancellationToken = default);
 }

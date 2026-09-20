@@ -447,7 +447,7 @@ export type ProjectDocument = {
 export type ProjectRequirement = {
   id: string;
   academicProjectId: string;
-  projectDocumentId: string;
+  projectDocumentId: string | null;
   sourcePageNumber: number;
   title: string;
   description: string;
@@ -567,6 +567,36 @@ export async function uploadProjectDocument(
   }
 
   return (await response.json()) as ProjectDocument;
+}
+
+export async function deleteProjectDocument(
+  token: string,
+  projectId: string,
+  documentId: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/projects/${projectId}/documents/${documentId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (response.status === 401) {
+    throw new Error("SESSION_EXPIRED");
+  }
+
+  if (response.status === 404) {
+    throw new Error("Document not found.");
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      "Unable to delete the document."
+    );
+  }
 }
 export async function extractDocumentRequirements(
   token: string,

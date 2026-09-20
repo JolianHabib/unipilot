@@ -82,5 +82,5 @@ public sealed class AuthService(AppDbContext dbContext,ITokenService tokenServic
         token.AccessToken,
         token.ExpiresAtUtc,
         null);
-}
+    }
 }

@@ -40,6 +40,10 @@ import {
   TaskBoard,
 } from "../components/TaskBoard";
 
+import {
+  DeleteDocumentButton,
+} from "../components/DeleteDocumentButton";
+
 type ProjectWorkspacePageProps = {
   token: string;
   project: AcademicProject;
@@ -314,6 +318,32 @@ export function ProjectWorkspacePage({
       setConvertingRequirementId(null);
     }
   }
+  function handleDocumentDeleted(
+  documentId: string
+) {
+  setDocuments((currentDocuments) =>
+    currentDocuments.filter(
+      (document) =>
+        document.id !== documentId
+    )
+  );
+
+  setRequirements(
+    (currentRequirements) =>
+      currentRequirements.map(
+        (requirement) =>
+          requirement.projectDocumentId ===
+          documentId
+            ? {
+                ...requirement,
+                projectDocumentId: null,
+              }
+            : requirement
+      )
+  );
+
+  setAnalysisError(null);
+}
 
   return (
     <main className="project-workspace">
@@ -658,7 +688,20 @@ export function ProjectWorkspacePage({
                               ? "Analyzing..."
                               : "Analyze with AI"}
                           </button>
+                          
+                          
                         )}
+                        <DeleteDocumentButton
+  token={token}
+  projectId={project.id}
+  document={document}
+  onDeleted={
+    handleDocumentDeleted
+  }
+  onSessionExpired={
+    onSessionExpired
+  }
+/>
                       </div>
                     </article>
                   );

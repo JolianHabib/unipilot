@@ -2831,3 +2831,32 @@ textarea {
     flex-direction: column-reverse;
   }
 }
+
+.document-delete-button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  padding: 0;
+  place-items: center;
+  color: #a4433a;
+  border: 1px solid #fecdca;
+  border-radius: 10px;
+  background: #fff7f6;
+  transition:
+    color 150ms ease,
+    border-color 150ms ease,
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.document-delete-button:hover {
+  color: #ffffff;
+  border-color: #d92d20;
+  background: #d92d20;
+  transform: translateY(-1px);
+}
+
+.document-row-actions {
+  flex-wrap: wrap;
+}

@@ -69,5 +69,5 @@ public async Task<IActionResult> Login(
         accessToken = result.AccessToken,
         expiresAtUtc = result.ExpiresAtUtc
     });
-}
+    }
 }

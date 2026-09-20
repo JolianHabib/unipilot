@@ -8,23 +8,29 @@ namespace UniPilot.API.Controllers;
 
 [ApiController]
 [Authorize]
-[Route("api/projects/{projectId:guid}/documents")]
+[Route(
+    "api/projects/{projectId:guid}/documents")]
 public sealed class ProjectDocumentsController(
-    IProjectDocumentService documentService) : ControllerBase
+    IProjectDocumentService documentService)
+    : ControllerBase
 {
-    private const long MaximumFileSize = 10 * 1024 * 1024;
+    private const long MaximumFileSize =
+        10 * 1024 * 1024;
 
     [HttpPost]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(11 * 1024 * 1024)]
     [RequestFormLimits(
-        MultipartBodyLengthLimit = 11 * 1024 * 1024)]
+        MultipartBodyLengthLimit =
+            11 * 1024 * 1024)]
     public async Task<IActionResult> Upload(
         Guid projectId,
-        [FromForm] UploadProjectDocumentRequest request,
+        [FromForm]
+        UploadProjectDocumentRequest request,
         CancellationToken cancellationToken)
     {
-        if (!TryGetCurrentUserId(out var userId))
+        if (!TryGetCurrentUserId(
+                out var userId))
         {
             return Unauthorized();
         }
@@ -35,7 +41,8 @@ public sealed class ProjectDocumentsController(
         {
             return BadRequest(new
             {
-                message = "The PDF file is empty."
+                message =
+                    "The PDF file is empty."
             });
         }
 
@@ -43,27 +50,36 @@ public sealed class ProjectDocumentsController(
         {
             return BadRequest(new
             {
-                message = "The PDF file cannot exceed 10 MB."
+                message =
+                    "The PDF file cannot exceed 10 MB."
             });
         }
 
         var originalFileName =
             Path.GetFileName(file.FileName);
 
-        if (originalFileName.Length > 255 ||
+        if (
+            originalFileName.Length > 255 ||
             !string.Equals(
-                Path.GetExtension(originalFileName),
+                Path.GetExtension(
+                    originalFileName),
                 ".pdf",
-                StringComparison.OrdinalIgnoreCase))
+                StringComparison
+                    .OrdinalIgnoreCase)
+        )
         {
             return BadRequest(new
             {
-                message = "Only PDF files are supported."
+                message =
+                    "Only PDF files are supported."
             });
         }
 
-        await using var input = file.OpenReadStream();
-        await using var content = new MemoryStream();
+        await using var input =
+            file.OpenReadStream();
+
+        await using var content =
+            new MemoryStream();
 
         await input.CopyToAsync(
             content,
@@ -73,30 +89,34 @@ public sealed class ProjectDocumentsController(
         {
             return BadRequest(new
             {
-                message = "The uploaded file is not a valid PDF."
+                message =
+                    "The uploaded file is not a valid PDF."
             });
         }
 
         content.Position = 0;
 
-        var command = new UploadProjectDocumentCommand(
-            userId,
-            projectId,
-            originalFileName,
-            "application/pdf",
-            file.Length,
-            request.DocumentType,
-            content);
+        var command =
+            new UploadProjectDocumentCommand(
+                userId,
+                projectId,
+                originalFileName,
+                "application/pdf",
+                file.Length,
+                request.DocumentType,
+                content);
 
-        var result = await documentService.UploadAsync(
-            command,
-            cancellationToken);
+        var result =
+            await documentService.UploadAsync(
+                command,
+                cancellationToken);
 
         return result.Status switch
         {
             UploadDocumentStatus.Success =>
                 StatusCode(
-                    StatusCodes.Status201Created,
+                    StatusCodes
+                        .Status201Created,
                     result.Document),
 
             UploadDocumentStatus.Duplicate =>
@@ -108,12 +128,75 @@ public sealed class ProjectDocumentsController(
 
             _ => NotFound(new
             {
-                message = "Project was not found."
+                message =
+                    "Project was not found."
             })
         };
     }
 
-    private static bool HasPdfSignature(Stream content)
+    [HttpGet]
+    public async Task<IActionResult> GetAll(
+        Guid projectId,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(
+                out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var documents =
+            await documentService
+                .GetByProjectAsync(
+                    userId,
+                    projectId,
+                    cancellationToken);
+
+        if (documents is null)
+        {
+            return NotFound(new
+            {
+                message =
+                    "Project was not found."
+            });
+        }
+
+        return Ok(documents);
+    }
+
+    [HttpDelete("{documentId:guid}")]
+    public async Task<IActionResult> Delete(
+        Guid projectId,
+        Guid documentId,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(
+                out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var deleted =
+            await documentService.DeleteAsync(
+                userId,
+                projectId,
+                documentId,
+                cancellationToken);
+
+        if (!deleted)
+        {
+            return NotFound(new
+            {
+                message =
+                    "Document was not found."
+            });
+        }
+
+        return NoContent();
+    }
+
+    private static bool HasPdfSignature(
+        Stream content)
     {
         if (content.Length < 5)
         {
@@ -122,50 +205,36 @@ public sealed class ProjectDocumentsController(
 
         content.Position = 0;
 
-        Span<byte> signature = stackalloc byte[5];
+        Span<byte> signature =
+            stackalloc byte[5];
 
-        var bytesRead = content.Read(signature);
+        var bytesRead =
+            content.Read(signature);
+
         content.Position = 0;
 
         return bytesRead == 5 &&
                signature.SequenceEqual(
                    new byte[]
                    {
-                       0x25, 0x50, 0x44, 0x46, 0x2D
+                       0x25,
+                       0x50,
+                       0x44,
+                       0x46,
+                       0x2D
                    });
     }
 
-    private bool TryGetCurrentUserId(out Guid userId)
+    private bool TryGetCurrentUserId(
+        out Guid userId)
     {
-        var value = User.FindFirst(
-            ClaimTypes.NameIdentifier)?.Value;
+        var value =
+            User.FindFirst(
+                ClaimTypes.NameIdentifier)
+                ?.Value;
 
-        return Guid.TryParse(value, out userId);
+        return Guid.TryParse(
+            value,
+            out userId);
     }
-
-    [HttpGet]
-public async Task<IActionResult> GetAll(
-    Guid projectId,
-    CancellationToken cancellationToken)
-{
-    if (!TryGetCurrentUserId(out var userId))
-    {
-        return Unauthorized();
-    }
-
-    var documents = await documentService.GetByProjectAsync(
-        userId,
-        projectId,
-        cancellationToken);
-
-    if (documents is null)
-    {
-        return NotFound(new
-        {
-            message = "Project was not found."
-        });
-    }
-
-    return Ok(documents);
-}
 }
