@@ -3072,3 +3072,177 @@ textarea {
     width: 100%;
   }
 }
+.forgot-password-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -6px;
+  margin-bottom: 18px;
+}
+
+.forgot-password-link {
+  color: #5956e9;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.forgot-password-link:hover {
+  text-decoration: underline;
+}
+.password-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(99, 102, 241, 0.14),
+      transparent 35%
+    ),
+    #f7f8fc;
+}
+
+.password-card {
+  width: min(100%, 470px);
+  padding: 42px;
+  border: 1px solid #e3e6ef;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow:
+    0 24px 60px rgba(36, 39, 75, 0.1);
+}
+
+.password-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 38px;
+  color: #151a31;
+  font-size: 1.25rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.password-brand-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 13px;
+  color: #ffffff;
+  background: #5b5ce2;
+}
+
+.password-page-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  margin-bottom: 22px;
+  border-radius: 18px;
+  color: #5558df;
+  background: #eeeeff;
+}
+
+.password-page-icon.success {
+  color: #0c8b70;
+  background: #e4f7f1;
+}
+
+.password-page-icon.error {
+  color: #c34646;
+  background: #fff0f0;
+}
+
+.password-card h1 {
+  margin: 8px 0 12px;
+  color: #11172d;
+  font-size: clamp(1.8rem, 4vw, 2.25rem);
+  line-height: 1.15;
+}
+
+.password-description {
+  margin: 0 0 28px;
+  color: #747b91;
+  line-height: 1.65;
+}
+
+.password-description strong {
+  color: #41485f;
+  overflow-wrap: anywhere;
+}
+
+.password-card form {
+  display: flex;
+  flex-direction: column;
+}
+
+.password-card form label {
+  margin-bottom: 8px;
+  color: #30364c;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.password-card form input {
+  width: 100%;
+  margin-bottom: 19px;
+}
+
+.password-success {
+  display: flex;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #bce9dc;
+  border-radius: 15px;
+  color: #146a59;
+  background: #edf9f5;
+}
+
+.password-success svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.password-success strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.password-success p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.password-action-link {
+  display: flex;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.back-to-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 24px;
+  color: #63697d;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.back-to-login:hover {
+  color: #5558df;
+}
+
+@media (max-width: 540px) {
+  .password-page {
+    padding: 16px;
+  }
+
+  .password-card {
+    padding: 30px 24px;
+    border-radius: 20px;
+  }
+}

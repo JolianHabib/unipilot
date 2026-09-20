@@ -278,7 +278,16 @@ export function LoginPage({
               }
               required
             />
-
+{!isRegisterMode && (
+  <div className="forgot-password-row">
+    <a
+      className="forgot-password-link"
+      href="/forgot-password"
+    >
+      Forgot password?
+    </a>
+  </div>
+)}
             {isRegisterMode && (
               <>
                 <label htmlFor="confirmPassword">

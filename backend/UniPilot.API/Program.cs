@@ -10,6 +10,7 @@ using UniPilot.Infrastructure.Courses;
 using UniPilot.Infrastructure.Tasks;
 using UniPilot.Application.Users;
 using UniPilot.Infrastructure.Users;
+using UniPilot.Infrastructure.Auth;
 
 var builder =
     WebApplication.CreateBuilder(args);
@@ -100,6 +101,9 @@ builder.Services.AddSingleton<
 
 builder.Services.AddAuthorization();
 builder.Services.AddOpenApi();
+builder.Services.AddHttpClient<
+    IPasswordResetEmailSender,
+    ResendPasswordResetEmailSender>();
 
 var app = builder.Build();
 

@@ -50,7 +50,19 @@ public sealed class AppDbContext(
         user.Property(x => x.PasswordHash)
             .IsRequired()
             .HasMaxLength(255);
+user.Property(x => x.PasswordHash)
+    .IsRequired()
+    .HasMaxLength(255);
 
+user.Property(x =>
+        x.PasswordResetTokenHash)
+    .HasMaxLength(64);
+
+user.Property(x =>
+    x.PasswordResetTokenExpiresAtUtc);
+
+user.Property(x => x.CreatedAtUtc)
+    .IsRequired();
         user.Property(x => x.CreatedAtUtc)
             .IsRequired();
 

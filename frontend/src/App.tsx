@@ -25,12 +25,20 @@ import {
 } from "./pages/DashboardPage";
 
 import {
+  ForgotPasswordPage,
+} from "./pages/ForgotPasswordPage";
+
+import {
   LoginPage,
 } from "./pages/LoginPage";
 
 import {
   ProjectWorkspacePage,
 } from "./pages/ProjectWorkspacePage";
+
+import {
+  ResetPasswordPage,
+} from "./pages/ResetPasswordPage";
 
 function App() {
   const [token, setToken] =
@@ -314,6 +322,23 @@ function App() {
       isCancelled = true;
     };
   }, [token]);
+
+  const currentPath =
+    window.location.pathname;
+
+  if (
+    currentPath ===
+    "/forgot-password"
+  ) {
+    return <ForgotPasswordPage />;
+  }
+
+  if (
+    currentPath ===
+    "/reset-password"
+  ) {
+    return <ResetPasswordPage />;
+  }
 
   if (!token) {
     return (
