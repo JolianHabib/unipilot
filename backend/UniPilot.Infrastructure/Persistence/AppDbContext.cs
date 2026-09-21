@@ -28,6 +28,9 @@ public sealed class AppDbContext(
     public DbSet<ProjectTask> ProjectTasks =>
         Set<ProjectTask>();
 
+    public DbSet<Notification> Notifications =>
+        Set<Notification>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
@@ -328,5 +331,45 @@ user.Property(x => x.CreatedAtUtc)
             .HasForeignKey(x =>
                 x.ProjectRequirementId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        var notification =
+    modelBuilder.Entity<Notification>();
+
+notification.ToTable("notifications");
+
+notification.HasKey(x => x.Id);
+
+notification.Property(x => x.Type)
+    .HasConversion<string>()
+    .IsRequired()
+    .HasMaxLength(30);
+
+notification.Property(x => x.Title)
+    .IsRequired()
+    .HasMaxLength(150);
+
+notification.Property(x => x.Message)
+    .IsRequired()
+    .HasMaxLength(1000);
+
+notification.Property(x => x.ActionUrl)
+    .HasMaxLength(500);
+
+notification.Property(x => x.IsRead)
+    .IsRequired();
+
+notification.Property(x => x.CreatedAtUtc)
+    .IsRequired();
+
+notification.HasIndex(x => new
+{
+    x.UserId,
+    x.CreatedAtUtc
+});
+
+notification.HasOne(x => x.User)
+    .WithMany()
+    .HasForeignKey(x => x.UserId)
+    .OnDelete(DeleteBehavior.Cascade);
     }
 }

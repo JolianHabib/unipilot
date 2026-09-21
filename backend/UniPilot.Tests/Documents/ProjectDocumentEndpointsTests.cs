@@ -328,7 +328,201 @@ public async Task RetryProcessing_AsAnotherUser_ReturnsNotFound()
         HttpStatusCode.NotFound,
         response.StatusCode);
 }
+[Fact]
+public async Task Upload_CreatesUnreadNotification()
+{
+    var token =
+        await RegisterAndLoginAsync();
 
+    var projectId =
+        await CreateProjectAsync(token);
+
+    await UploadDocumentAsync(
+        token,
+        projectId,
+        CreatePdfBytes());
+
+    var notifications =
+        await GetNotificationsAsync(token);
+
+    Assert.Equal(
+        JsonValueKind.Array,
+        notifications.ValueKind);
+
+    Assert.NotEqual(
+        0,
+        notifications.GetArrayLength());
+
+    var notification =
+        notifications[0];
+
+    Assert.False(
+        notification
+            .GetProperty("isRead")
+            .GetBoolean());
+
+    Assert.Contains(
+        "PDF processing",
+        notification
+            .GetProperty("title")
+            .GetString());
+}
+
+[Fact]
+public async Task MarkNotificationAsRead_AsOwner_ReturnsNoContent()
+{
+    var token =
+        await RegisterAndLoginAsync();
+
+    var projectId =
+        await CreateProjectAsync(token);
+
+    await UploadDocumentAsync(
+        token,
+        projectId,
+        CreatePdfBytes());
+
+    var notifications =
+        await GetNotificationsAsync(token);
+
+    var notificationId =
+        notifications[0]
+            .GetProperty("id")
+            .GetGuid();
+
+    using var request =
+        CreateAuthorizedRequest(
+            HttpMethod.Put,
+            $"/api/notifications/{notificationId}/read",
+            token);
+
+    var response =
+        await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.NoContent,
+        response.StatusCode);
+
+    var updatedNotifications =
+        await GetNotificationsAsync(token);
+
+    var updatedNotification =
+        updatedNotifications
+            .EnumerateArray()
+            .Single(item =>
+                item.GetProperty("id")
+                    .GetGuid() ==
+                notificationId);
+
+    Assert.True(
+        updatedNotification
+            .GetProperty("isRead")
+            .GetBoolean());
+}
+
+[Fact]
+public async Task MarkNotificationAsRead_AsAnotherUser_ReturnsNotFound()
+{
+    var ownerToken =
+        await RegisterAndLoginAsync();
+
+    var otherToken =
+        await RegisterAndLoginAsync();
+
+    var projectId =
+        await CreateProjectAsync(
+            ownerToken);
+
+    await UploadDocumentAsync(
+        ownerToken,
+        projectId,
+        CreatePdfBytes());
+
+    var notifications =
+        await GetNotificationsAsync(
+            ownerToken);
+
+    var notificationId =
+        notifications[0]
+            .GetProperty("id")
+            .GetGuid();
+
+    using var request =
+        CreateAuthorizedRequest(
+            HttpMethod.Put,
+            $"/api/notifications/{notificationId}/read",
+            otherToken);
+
+    var response =
+        await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.NotFound,
+        response.StatusCode);
+}
+
+[Fact]
+public async Task MarkAllNotificationsAsRead_MarksEveryNotification()
+{
+    var token =
+        await RegisterAndLoginAsync();
+
+    var projectId =
+        await CreateProjectAsync(token);
+
+    await UploadDocumentAsync(
+        token,
+        projectId,
+        CreatePdfBytes());
+
+    using var request =
+        CreateAuthorizedRequest(
+            HttpMethod.Put,
+            "/api/notifications/read-all",
+            token);
+
+    var response =
+        await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.NoContent,
+        response.StatusCode);
+
+    var notifications =
+        await GetNotificationsAsync(token);
+
+    Assert.All(
+        notifications.EnumerateArray(),
+        notification =>
+            Assert.True(
+                notification
+                    .GetProperty("isRead")
+                    .GetBoolean()));
+}
+private async Task<JsonElement>
+    GetNotificationsAsync(
+        string token)
+{
+    using var request =
+        CreateAuthorizedRequest(
+            HttpMethod.Get,
+            "/api/notifications",
+            token);
+
+    var response =
+        await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.OK,
+        response.StatusCode);
+
+    using var body =
+        JsonDocument.Parse(
+            await response.Content
+                .ReadAsStringAsync());
+
+    return body.RootElement.Clone();
+}
     private async Task<Guid> UploadDocumentAsync(
         string token,
         Guid projectId,

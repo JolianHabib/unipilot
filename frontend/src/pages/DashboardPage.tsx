@@ -6,7 +6,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  Bell,
   BookOpen,
   CheckCircle2,
   ChevronRight,
@@ -27,6 +26,10 @@ import {
   getWorkspaceProjects,
   getWorkspaceRequirements,
 } from "../api/workspace";
+import {
+  NotificationMenu,
+} from "../components/NotificationMenu";
+
 import type {
   AcademicProject,
   Course,
@@ -180,7 +183,10 @@ export function DashboardPage({
             <Search size={18} />
             <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${section}...`} />
           </div>
-          <button className="notification-button" type="button" aria-label="Notifications"><Bell size={20} /><span /></button>
+          <NotificationMenu
+            token={token}
+            onSessionExpired={onLogout}
+          />
         </header>
 
         <div className="dashboard-content">

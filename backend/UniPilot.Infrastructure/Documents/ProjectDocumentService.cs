@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using UniPilot.Application.Documents;
 using UniPilot.Domain.Entities;
 using UniPilot.Infrastructure.Persistence;
+using UniPilot.Application.Notifications;
 
 namespace UniPilot.Infrastructure.Documents;
 
@@ -11,6 +12,7 @@ public sealed class ProjectDocumentService(
     AppDbContext dbContext,
     IFileStorage fileStorage,
     IPdfTextExtractor pdfTextExtractor,
+    INotificationService notificationService,
     ILogger<ProjectDocumentService> logger)
     : IProjectDocumentService
 {
@@ -127,10 +129,16 @@ public sealed class ProjectDocumentService(
         }
 
         await ExtractAndSavePagesAsync(
-            document,
-            cancellationToken);
+    document,
+    cancellationToken);
 
-        return new UploadDocumentResult(
+await CreateProcessingNotificationAsync(
+    command.OwnerId,
+    document,
+    false,
+    cancellationToken);
+
+return new UploadDocumentResult(
             UploadDocumentStatus.Success,
             Map(document));
     }
@@ -339,10 +347,16 @@ public async Task<RetryDocumentProcessingResult>
         cancellationToken);
 
     await ExtractAndSavePagesAsync(
-        document,
-        cancellationToken);
+    document,
+    cancellationToken);
 
-    var resultStatus =
+await CreateProcessingNotificationAsync(
+    ownerId,
+    document,
+    true,
+    cancellationToken);
+
+var resultStatus =
         document.ProcessingStatus ==
             DocumentProcessingStatus.Ready
             ? RetryDocumentProcessingStatus
@@ -479,6 +493,44 @@ public async Task<RetryDocumentProcessingResult>
                 CancellationToken.None);
         }
     }
+    private async Task
+    CreateProcessingNotificationAsync(
+        Guid ownerId,
+        ProjectDocument document,
+        bool isRetry,
+        CancellationToken cancellationToken)
+{
+    var succeeded =
+        document.ProcessingStatus ==
+        DocumentProcessingStatus.Ready;
+
+    var type =
+        succeeded
+            ? "Success"
+            : "Error";
+
+    var title =
+        succeeded
+            ? isRetry
+                ? "PDF reprocessing completed"
+                : "PDF processing completed"
+            : isRetry
+                ? "PDF reprocessing failed"
+                : "PDF processing failed";
+
+    var message =
+        succeeded
+            ? $"“{document.OriginalFileName}” is ready. {document.PageCount} page(s) were extracted."
+            : $"UniPilot could not process “{document.OriginalFileName}”. You can retry from the project workspace.";
+
+    await notificationService.CreateAsync(
+        ownerId,
+        type,
+        title,
+        message,
+        null,
+        cancellationToken);
+}
 
     private static string Truncate(
         string value,

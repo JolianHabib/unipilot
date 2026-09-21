@@ -12,6 +12,9 @@ using UniPilot.Application.Documents;
 using UniPilot.Infrastructure.Documents;
 using UniPilot.Application.Requirements;
 using UniPilot.Infrastructure.Requirements;
+using UniPilot.Application.Notifications;
+using UniPilot.Infrastructure.Notifications;
+
 namespace UniPilot.Infrastructure;
 
 public static class DependencyInjection
@@ -35,6 +38,7 @@ public static class DependencyInjection
         services.AddSingleton<IPdfTextExtractor,PdfPigTextExtractor>();
         services.AddHttpClient<IRequirementExtractor,GeminiRequirementExtractor>();
         services.AddScoped<IProjectRequirementService,ProjectRequirementService>();
+        services.AddScoped<INotificationService,NotificationService>();
         return services;
     }
 }
