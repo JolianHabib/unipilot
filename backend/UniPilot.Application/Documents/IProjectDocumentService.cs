@@ -24,6 +24,13 @@ public interface IProjectDocumentService
         Guid documentId,
         CancellationToken cancellationToken = default);
 
+   Task<RetryDocumentProcessingResult>
+    RetryProcessingAsync(
+        Guid ownerId,
+        Guid academicProjectId,
+        Guid documentId,
+        CancellationToken cancellationToken = default);
+
     Task<bool> DeleteAsync(
         Guid ownerId,
         Guid academicProjectId,

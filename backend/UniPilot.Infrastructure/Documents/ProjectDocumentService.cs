@@ -277,6 +277,83 @@ public async Task<ProjectDocumentFileResult?>
             : document.ContentType,
         document.OriginalFileName);
 }
+public async Task<RetryDocumentProcessingResult>
+    RetryProcessingAsync(
+        Guid ownerId,
+        Guid academicProjectId,
+        Guid documentId,
+        CancellationToken cancellationToken = default)
+{
+    var document =
+        await dbContext.ProjectDocuments
+            .SingleOrDefaultAsync(
+                existingDocument =>
+                    existingDocument.Id ==
+                        documentId &&
+                    existingDocument
+                        .AcademicProjectId ==
+                        academicProjectId &&
+                    existingDocument
+                        .AcademicProject
+                        .Course
+                        .OwnerId ==
+                        ownerId,
+                cancellationToken);
+
+    if (document is null)
+    {
+        return new RetryDocumentProcessingResult(
+            RetryDocumentProcessingStatus
+                .DocumentNotFound,
+            null);
+    }
+
+    if (
+        document.ProcessingStatus !=
+        DocumentProcessingStatus.Failed
+    )
+    {
+        return new RetryDocumentProcessingResult(
+            RetryDocumentProcessingStatus
+                .DocumentNotFailed,
+            Map(document));
+    }
+
+    var existingPages =
+        await dbContext.DocumentPages
+            .Where(page =>
+                page.ProjectDocumentId ==
+                    document.Id)
+            .ToListAsync(
+                cancellationToken);
+
+    dbContext.DocumentPages.RemoveRange(
+        existingPages);
+
+    document.PageCount = 0;
+    document.FailureReason = null;
+    document.ProcessingStatus =
+        DocumentProcessingStatus.Uploaded;
+
+    await dbContext.SaveChangesAsync(
+        cancellationToken);
+
+    await ExtractAndSavePagesAsync(
+        document,
+        cancellationToken);
+
+    var resultStatus =
+        document.ProcessingStatus ==
+            DocumentProcessingStatus.Ready
+            ? RetryDocumentProcessingStatus
+                .Success
+            : RetryDocumentProcessingStatus
+                .ProcessingFailed;
+
+    return new RetryDocumentProcessingResult(
+        resultStatus,
+        Map(document));
+}
     public async Task<bool> DeleteAsync(
         Guid ownerId,
         Guid academicProjectId,

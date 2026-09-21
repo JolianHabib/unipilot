@@ -46,6 +46,12 @@ import {
 import {
   DocumentFileButtons,
 } from "../components/DocumentFileButtons";
+
+import {
+  RetryDocumentButton,
+} from "../components/RetryDocumentButton";
+
+
 type ProjectWorkspacePageProps = {
   token: string;
   project: AcademicProject;
@@ -693,6 +699,31 @@ export function ProjectWorkspacePage({
                           
                           
                         )}
+                        {document.processingStatus
+  .toLowerCase() === "failed" && (
+  <RetryDocumentButton
+    token={token}
+    projectId={project.id}
+    document={document}
+    onRetried={(
+      updatedDocument
+    ) => {
+      setDocuments(
+        (currentDocuments) =>
+          currentDocuments.map(
+            (currentDocument) =>
+              currentDocument.id ===
+              updatedDocument.id
+                ? updatedDocument
+                : currentDocument
+          )
+      );
+    }}
+    onSessionExpired={
+      onSessionExpired
+    }
+  />
+)}
                         <DocumentFileButtons
   token={token}
   projectId={project.id}

@@ -196,6 +196,59 @@ public async Task<IActionResult> GetFile(
         documentFile.ContentType,
         enableRangeProcessing: true);
 }
+[HttpPost("{documentId:guid}/retry")]
+public async Task<IActionResult>
+    RetryProcessing(
+        Guid projectId,
+        Guid documentId,
+        CancellationToken cancellationToken)
+{
+    if (!TryGetCurrentUserId(
+            out var userId))
+    {
+        return Unauthorized();
+    }
+
+    var result =
+        await documentService
+            .RetryProcessingAsync(
+                userId,
+                projectId,
+                documentId,
+                cancellationToken);
+
+    return result.Status switch
+    {
+        RetryDocumentProcessingStatus
+            .Success =>
+            Ok(result.Document),
+
+        RetryDocumentProcessingStatus
+            .DocumentNotFailed =>
+            Conflict(new
+            {
+                message =
+                    "Only failed documents can be retried."
+            }),
+
+        RetryDocumentProcessingStatus
+            .ProcessingFailed =>
+            UnprocessableEntity(new
+            {
+                message =
+                    result.Document
+                        ?.FailureReason
+                    ?? "Document processing failed again."
+            }),
+
+        _ =>
+            NotFound(new
+            {
+                message =
+                    "Document was not found."
+            })
+    };
+}
     [HttpDelete("{documentId:guid}")]
     public async Task<IActionResult> Delete(
         Guid projectId,

@@ -3317,3 +3317,47 @@ textarea {
   font-size: 0.75rem;
   text-align: right;
 }
+.retry-document-control {
+  position: relative;
+}
+
+.retry-document-button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid #efb0a9;
+  border-radius: 11px;
+  color: #b74438;
+  background: #fff7f5;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.retry-document-button:hover:not(:disabled) {
+  border-color: #d96a5d;
+  background: #fff0ed;
+}
+
+.retry-document-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.retry-document-error {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 3;
+  width: 230px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #a8362d;
+  background: #fff0ed;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
