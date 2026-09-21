@@ -21,34 +21,56 @@ public sealed class ProjectDocumentEndpointsTests
     [Fact]
     public async Task Upload_ValidPdf_ReturnsCreated()
     {
-        var token = await RegisterAndLoginAsync();
-        var projectId = await CreateProjectAsync(token);
+        var token =
+            await RegisterAndLoginAsync();
 
-        using var request = CreateUploadRequest(
-            token,
-            projectId,
-            CreatePdfBytes());
+        var projectId =
+            await CreateProjectAsync(token);
 
-        var response = await _client.SendAsync(request);
+        using var request =
+            CreateUploadRequest(
+                token,
+                projectId,
+                CreatePdfBytes());
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var response =
+            await _client.SendAsync(request);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            response.StatusCode);
     }
 
     [Fact]
     public async Task Upload_SamePdfTwice_ReturnsConflict()
     {
-        var token = await RegisterAndLoginAsync();
-        var projectId = await CreateProjectAsync(token);
+        var token =
+            await RegisterAndLoginAsync();
+
+        var projectId =
+            await CreateProjectAsync(token);
+
         var pdf = CreatePdfBytes();
 
         using var firstRequest =
-            CreateUploadRequest(token, projectId, pdf);
+            CreateUploadRequest(
+                token,
+                projectId,
+                pdf);
 
         using var secondRequest =
-            CreateUploadRequest(token, projectId, pdf);
+            CreateUploadRequest(
+                token,
+                projectId,
+                pdf);
 
-        var firstResponse = await _client.SendAsync(firstRequest);
-        var secondResponse = await _client.SendAsync(secondRequest);
+        var firstResponse =
+            await _client.SendAsync(
+                firstRequest);
+
+        var secondResponse =
+            await _client.SendAsync(
+                secondRequest);
 
         Assert.Equal(
             HttpStatusCode.Created,
@@ -62,18 +84,24 @@ public sealed class ProjectDocumentEndpointsTests
     [Fact]
     public async Task Upload_InvalidPdfSignature_ReturnsBadRequest()
     {
-        var token = await RegisterAndLoginAsync();
-        var projectId = await CreateProjectAsync(token);
+        var token =
+            await RegisterAndLoginAsync();
 
-        var invalidContent = Encoding.UTF8.GetBytes(
-            "This is not a PDF.");
+        var projectId =
+            await CreateProjectAsync(token);
 
-        using var request = CreateUploadRequest(
-            token,
-            projectId,
-            invalidContent);
+        var invalidContent =
+            Encoding.UTF8.GetBytes(
+                "This is not a PDF.");
 
-        var response = await _client.SendAsync(request);
+        using var request =
+            CreateUploadRequest(
+                token,
+                projectId,
+                invalidContent);
+
+        var response =
+            await _client.SendAsync(request);
 
         Assert.Equal(
             HttpStatusCode.BadRequest,
@@ -83,57 +111,203 @@ public sealed class ProjectDocumentEndpointsTests
     [Fact]
     public async Task Upload_ToAnotherUsersProject_ReturnsNotFound()
     {
-        var ownerToken = await RegisterAndLoginAsync();
-        var otherToken = await RegisterAndLoginAsync();
+        var ownerToken =
+            await RegisterAndLoginAsync();
 
-        var projectId = await CreateProjectAsync(ownerToken);
+        var otherToken =
+            await RegisterAndLoginAsync();
 
-        using var request = CreateUploadRequest(
-            otherToken,
-            projectId,
-            CreatePdfBytes());
+        var projectId =
+            await CreateProjectAsync(
+                ownerToken);
 
-        var response = await _client.SendAsync(request);
+        using var request =
+            CreateUploadRequest(
+                otherToken,
+                projectId,
+                CreatePdfBytes());
+
+        var response =
+            await _client.SendAsync(request);
 
         Assert.Equal(
             HttpStatusCode.NotFound,
             response.StatusCode);
     }
 
-    private async Task<string> RegisterAndLoginAsync()
+    [Fact]
+    public async Task GetFile_AsOwner_ReturnsPdf()
+    {
+        var token =
+            await RegisterAndLoginAsync();
+
+        var projectId =
+            await CreateProjectAsync(token);
+
+        var expectedPdf =
+            CreatePdfBytes();
+
+        var documentId =
+            await UploadDocumentAsync(
+                token,
+                projectId,
+                expectedPdf);
+
+        using var request =
+            CreateAuthorizedRequest(
+                HttpMethod.Get,
+                $"/api/projects/{projectId}/documents/{documentId}/file",
+                token);
+
+        var response =
+            await _client.SendAsync(request);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            response.StatusCode);
+
+        Assert.Equal(
+            "application/pdf",
+            response.Content.Headers
+                .ContentType
+                ?.MediaType);
+
+        var returnedPdf =
+            await response.Content
+                .ReadAsByteArrayAsync();
+
+        Assert.Equal(
+            expectedPdf,
+            returnedPdf);
+    }
+
+    [Fact]
+    public async Task GetFile_WithoutToken_ReturnsUnauthorized()
+    {
+        var ownerToken =
+            await RegisterAndLoginAsync();
+
+        var projectId =
+            await CreateProjectAsync(
+                ownerToken);
+
+        var documentId =
+            await UploadDocumentAsync(
+                ownerToken,
+                projectId,
+                CreatePdfBytes());
+
+        var response =
+            await _client.GetAsync(
+                $"/api/projects/{projectId}/documents/{documentId}/file");
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetFile_AsAnotherUser_ReturnsNotFound()
+    {
+        var ownerToken =
+            await RegisterAndLoginAsync();
+
+        var otherToken =
+            await RegisterAndLoginAsync();
+
+        var projectId =
+            await CreateProjectAsync(
+                ownerToken);
+
+        var documentId =
+            await UploadDocumentAsync(
+                ownerToken,
+                projectId,
+                CreatePdfBytes());
+
+        using var request =
+            CreateAuthorizedRequest(
+                HttpMethod.Get,
+                $"/api/projects/{projectId}/documents/{documentId}/file",
+                otherToken);
+
+        var response =
+            await _client.SendAsync(request);
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+    }
+
+    private async Task<Guid> UploadDocumentAsync(
+        string token,
+        Guid projectId,
+        byte[] pdf)
+    {
+        using var request =
+            CreateUploadRequest(
+                token,
+                projectId,
+                pdf);
+
+        var response =
+            await _client.SendAsync(request);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            response.StatusCode);
+
+        using var body =
+            JsonDocument.Parse(
+                await response.Content
+                    .ReadAsStringAsync());
+
+        return body.RootElement
+            .GetProperty("id")
+            .GetGuid();
+    }
+
+    private async Task<string>
+        RegisterAndLoginAsync()
     {
         var email =
             $"document-test-{Guid.NewGuid():N}@example.com";
 
-        const string password = "Test1234!";
+        const string password =
+            "Test1234!";
 
-        var registerResponse = await _client.PostAsJsonAsync(
-            "/api/auth/register",
-            new
-            {
-                fullName = "Document Test User",
-                email,
-                password
-            });
+        var registerResponse =
+            await _client.PostAsJsonAsync(
+                "/api/auth/register",
+                new
+                {
+                    fullName =
+                        "Document Test User",
+                    email,
+                    password
+                });
 
         Assert.Equal(
             HttpStatusCode.Created,
             registerResponse.StatusCode);
 
-        var loginResponse = await _client.PostAsJsonAsync(
-            "/api/auth/login",
-            new
-            {
-                email,
-                password
-            });
+        var loginResponse =
+            await _client.PostAsJsonAsync(
+                "/api/auth/login",
+                new
+                {
+                    email,
+                    password
+                });
 
         Assert.Equal(
             HttpStatusCode.OK,
             loginResponse.StatusCode);
 
-        using var body = JsonDocument.Parse(
-            await loginResponse.Content.ReadAsStringAsync());
+        using var body =
+            JsonDocument.Parse(
+                await loginResponse.Content
+                    .ReadAsStringAsync());
 
         return body.RootElement
             .GetProperty("accessToken")
@@ -142,76 +316,106 @@ public sealed class ProjectDocumentEndpointsTests
                 "Login did not return a token.");
     }
 
-    private async Task<Guid> CreateProjectAsync(string token)
+    private async Task<Guid>
+        CreateProjectAsync(
+            string token)
     {
-        var courseId = await CreateCourseAsync(token);
+        var courseId =
+            await CreateCourseAsync(token);
 
-        using var request = CreateAuthorizedRequest(
-            HttpMethod.Post,
-            $"/api/courses/{courseId}/projects",
-            token);
+        using var request =
+            CreateAuthorizedRequest(
+                HttpMethod.Post,
+                $"/api/courses/{courseId}/projects",
+                token);
 
-        request.Content = JsonContent.Create(new
-        {
-            title = "Document Test Project",
-            description = "PDF upload testing",
-            dueDateUtc = "2026-12-20T20:00:00Z"
-        });
+        request.Content =
+            JsonContent.Create(new
+            {
+                title =
+                    "Document Test Project",
+                description =
+                    "PDF upload testing",
+                dueDateUtc =
+                    "2026-12-20T20:00:00Z"
+            });
 
-        var response = await _client.SendAsync(request);
+        var response =
+            await _client.SendAsync(request);
 
         Assert.Equal(
             HttpStatusCode.Created,
             response.StatusCode);
 
-        using var body = JsonDocument.Parse(
-            await response.Content.ReadAsStringAsync());
+        using var body =
+            JsonDocument.Parse(
+                await response.Content
+                    .ReadAsStringAsync());
 
-        return body.RootElement.GetProperty("id").GetGuid();
+        return body.RootElement
+            .GetProperty("id")
+            .GetGuid();
     }
 
-    private async Task<Guid> CreateCourseAsync(string token)
+    private async Task<Guid>
+        CreateCourseAsync(
+            string token)
     {
-        using var request = CreateAuthorizedRequest(
-            HttpMethod.Post,
-            "/api/courses",
-            token);
+        using var request =
+            CreateAuthorizedRequest(
+                HttpMethod.Post,
+                "/api/courses",
+                token);
 
-        request.Content = JsonContent.Create(new
-        {
-            name = $"Document Course {Guid.NewGuid():N}",
-            code = "DOC",
-            description = "Document testing course"
-        });
+        request.Content =
+            JsonContent.Create(new
+            {
+                name =
+                    $"Document Course {Guid.NewGuid():N}",
+                code = "DOC",
+                description =
+                    "Document testing course"
+            });
 
-        var response = await _client.SendAsync(request);
+        var response =
+            await _client.SendAsync(request);
 
         Assert.Equal(
             HttpStatusCode.Created,
             response.StatusCode);
 
-        using var body = JsonDocument.Parse(
-            await response.Content.ReadAsStringAsync());
+        using var body =
+            JsonDocument.Parse(
+                await response.Content
+                    .ReadAsStringAsync());
 
-        return body.RootElement.GetProperty("id").GetGuid();
+        return body.RootElement
+            .GetProperty("id")
+            .GetGuid();
     }
 
-    private static HttpRequestMessage CreateUploadRequest(
-        string token,
-        Guid projectId,
-        byte[] fileBytes)
+    private static HttpRequestMessage
+        CreateUploadRequest(
+            string token,
+            Guid projectId,
+            byte[] fileBytes)
     {
-        var request = CreateAuthorizedRequest(
-            HttpMethod.Post,
-            $"/api/projects/{projectId}/documents",
-            token);
+        var request =
+            CreateAuthorizedRequest(
+                HttpMethod.Post,
+                $"/api/projects/{projectId}/documents",
+                token);
 
-        var form = new MultipartFormDataContent();
+        var form =
+            new MultipartFormDataContent();
 
-        var fileContent = new ByteArrayContent(fileBytes);
+        var fileContent =
+            new ByteArrayContent(
+                fileBytes);
 
         fileContent.Headers.ContentType =
-            new MediaTypeHeaderValue("application/pdf");
+            new MediaTypeHeaderValue(
+                "application/pdf");
 
         form.Add(
             fileContent,
@@ -219,7 +423,8 @@ public sealed class ProjectDocumentEndpointsTests
             "requirements.pdf");
 
         form.Add(
-            new StringContent("Specification"),
+            new StringContent(
+                "Specification"),
             "DocumentType");
 
         request.Content = form;
@@ -227,15 +432,21 @@ public sealed class ProjectDocumentEndpointsTests
         return request;
     }
 
-    private static HttpRequestMessage CreateAuthorizedRequest(
-        HttpMethod method,
-        string uri,
-        string token)
+    private static HttpRequestMessage
+        CreateAuthorizedRequest(
+            HttpMethod method,
+            string uri,
+            string token)
     {
-        var request = new HttpRequestMessage(method, uri);
+        var request =
+            new HttpRequestMessage(
+                method,
+                uri);
 
         request.Headers.Authorization =
-            new AuthenticationHeaderValue("Bearer", token);
+            new AuthenticationHeaderValue(
+                "Bearer",
+                token);
 
         return request;
     }
