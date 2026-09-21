@@ -8,4 +8,7 @@ public sealed class UpdateAcademicProjectRequest
     public string? Description { get; set; }
 
     public DateTime? DueDateUtc { get; set; }
+
+    public string Status { get; set; } =
+        "Draft";
 }

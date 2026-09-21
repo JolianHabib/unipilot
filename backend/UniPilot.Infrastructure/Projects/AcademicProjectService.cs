@@ -119,14 +119,16 @@ public async Task<
             CancellationToken cancellationToken = default)
     {
         var project =
-            await dbContext.AcademicProjects
-                .SingleOrDefaultAsync(
-                    existingProject =>
-                        existingProject.Id ==
-                            command.AcademicProjectId &&
-                        existingProject.Course.OwnerId ==
-                            command.OwnerId,
-                    cancellationToken);
+    await dbContext.AcademicProjects
+        .SingleOrDefaultAsync(
+            existingProject =>
+                existingProject.Id ==
+                    command.AcademicProjectId &&
+                existingProject.CourseId ==
+                    command.CourseId &&
+                existingProject.Course.OwnerId ==
+                    command.OwnerId,
+            cancellationToken);
 
         if (project is null)
         {
@@ -145,6 +147,8 @@ public async Task<
         project.DueDateUtc =
             command.DueDateUtc
                 ?.ToUniversalTime();
+
+        project.Status = command.Status;
 
         await dbContext.SaveChangesAsync(
             cancellationToken);

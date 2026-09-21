@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UniPilot.API.Contracts.Projects;
 using UniPilot.Application.Projects;
+using UniPilot.Domain.Entities;
 
 namespace UniPilot.API.Controllers;
 
@@ -118,23 +119,38 @@ public sealed class AcademicProjectsController(
             });
         }
 
+        if (
+            !Enum.TryParse<
+                AcademicProjectStatus>(
+                request.Status,
+                true,
+                out var status) ||
+            !Enum.IsDefined(status)
+        )
+        {
+            return BadRequest(new
+            {
+                message =
+                    "Project status is invalid."
+            });
+        }
+
         var command =
             new UpdateAcademicProjectCommand(
                 userId,
+                courseId,
                 projectId,
                 request.Title,
                 request.Description,
-                request.DueDateUtc);
+                request.DueDateUtc,
+                status);
 
         var project =
             await projectService.UpdateAsync(
                 command,
                 cancellationToken);
 
-        if (
-            project is null ||
-            project.CourseId != courseId
-        )
+        if (project is null)
         {
             return NotFound(new
             {

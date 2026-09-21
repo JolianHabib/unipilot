@@ -312,10 +312,17 @@ export async function getProjectsByCourse(
 
   return (await response.json()) as AcademicProject[];
 }
+export type ProjectStatus =
+  | "Draft"
+  | "Active"
+  | "Completed"
+  | "Archived";
+
 export type SaveProjectInput = {
   title: string;
   description: string | null;
   dueDateUtc: string | null;
+  status: ProjectStatus;
 };
 
 export async function createProject(

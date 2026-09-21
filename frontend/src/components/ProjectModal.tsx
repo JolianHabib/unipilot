@@ -12,6 +12,7 @@ import {
 
 import type {
   AcademicProject,
+  ProjectStatus,
   SaveProjectInput,
 } from "../api/auth";
 
@@ -39,6 +40,9 @@ export function ProjectModal({
   const [dueDate, setDueDate] =
     useState("");
 
+  const [status, setStatus] =
+    useState<ProjectStatus>("Draft");
+
   const [isSubmitting, setIsSubmitting] =
     useState(false);
 
@@ -62,6 +66,15 @@ export function ProjectModal({
       project?.dueDateUtc
         ? project.dueDateUtc.slice(0, 10)
         : ""
+    );
+
+    const projectStatus =
+      project?.status as
+        | ProjectStatus
+        | undefined;
+
+    setStatus(
+      projectStatus ?? "Draft"
     );
 
     setError(null);
@@ -112,6 +125,7 @@ export function ProjectModal({
       setError(
         "Project title is required."
       );
+
       return;
     }
 
@@ -126,6 +140,9 @@ export function ProjectModal({
         dueDateUtc: dueDate
           ? `${dueDate}T00:00:00.000Z`
           : null,
+        status: isEditing
+          ? status
+          : "Draft",
       });
 
       onClose();
@@ -175,7 +192,7 @@ export function ProjectModal({
 
             <p>
               {isEditing
-                ? "Update the project information."
+                ? "Update the project information and status."
                 : "Add a project to this course."}
             </p>
           </div>
@@ -253,6 +270,42 @@ export function ProjectModal({
               disabled={isSubmitting}
             />
           </div>
+
+          {isEditing && (
+            <div className="form-field">
+              <label htmlFor="project-status">
+                Project status
+              </label>
+
+              <select
+                id="project-status"
+                value={status}
+                onChange={(event) =>
+                  setStatus(
+                    event.target
+                      .value as ProjectStatus
+                  )
+                }
+                disabled={isSubmitting}
+              >
+                <option value="Draft">
+                  Draft
+                </option>
+
+                <option value="Active">
+                  In progress
+                </option>
+
+                <option value="Completed">
+                  Completed
+                </option>
+
+                <option value="Archived">
+                  Archived
+                </option>
+              </select>
+            </div>
+          )}
 
           {error && (
             <p
