@@ -499,6 +499,72 @@ public async Task MarkAllNotificationsAsRead_MarksEveryNotification()
                     .GetProperty("isRead")
                     .GetBoolean()));
 }
+
+[Fact]
+public async Task GetNotifications_ProjectDueSoon_CreatesWarning()
+{
+    var token =
+        await RegisterAndLoginAsync();
+
+    await CreateProjectAsync(
+        token,
+        DateTime.UtcNow.Date
+            .AddDays(2));
+
+    var notifications =
+        await GetNotificationsAsync(token);
+
+    var reminder =
+        notifications
+            .EnumerateArray()
+            .Single(notification =>
+                notification
+                    .GetProperty("title")
+                    .GetString() ==
+                "Project deadline approaching");
+
+    Assert.Equal(
+        "Warning",
+        reminder
+            .GetProperty("type")
+            .GetString());
+
+    Assert.False(
+        reminder
+            .GetProperty("isRead")
+            .GetBoolean());
+}
+
+[Fact]
+public async Task GetNotifications_RepeatedRequests_DoNotDuplicateReminder()
+{
+    var token =
+        await RegisterAndLoginAsync();
+
+    await CreateProjectAsync(
+        token,
+        DateTime.UtcNow.Date
+            .AddDays(2));
+
+    await GetNotificationsAsync(token);
+
+    var notifications =
+        await GetNotificationsAsync(token);
+
+    var reminderCount =
+        notifications
+            .EnumerateArray()
+            .Count(notification =>
+                notification
+                    .GetProperty("title")
+                    .GetString() ==
+                "Project deadline approaching");
+
+    Assert.Equal(
+        1,
+        reminderCount);
+}
+
 private async Task<JsonElement>
     GetNotificationsAsync(
         string token)
@@ -602,7 +668,8 @@ private async Task<JsonElement>
 
     private async Task<Guid>
         CreateProjectAsync(
-            string token)
+            string token,
+            DateTime? dueDateUtc = null)
     {
         var courseId =
             await CreateCourseAsync(token);
@@ -621,7 +688,9 @@ private async Task<JsonElement>
                 description =
                     "PDF upload testing",
                 dueDateUtc =
-                    "2026-12-20T20:00:00Z"
+                    dueDateUtc ??
+                    DateTime.UtcNow
+                        .AddDays(90)
             });
 
         var response =

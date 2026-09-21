@@ -21,6 +21,11 @@ public sealed class Notification
 
     public string? ActionUrl { get; set; }
 
+    public string? DeduplicationKey {
+        get;
+        set;
+    }
+
     public bool IsRead { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } =

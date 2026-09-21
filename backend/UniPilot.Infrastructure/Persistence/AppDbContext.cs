@@ -354,7 +354,16 @@ notification.Property(x => x.Message)
 
 notification.Property(x => x.ActionUrl)
     .HasMaxLength(500);
+notification.Property(x =>
+        x.DeduplicationKey)
+    .HasMaxLength(200);
 
+notification.HasIndex(x => new
+{
+    x.UserId,
+    x.DeduplicationKey
+})
+.IsUnique();
 notification.Property(x => x.IsRead)
     .IsRequired();
 
