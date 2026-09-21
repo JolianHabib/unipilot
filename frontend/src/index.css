@@ -3268,3 +3268,52 @@ textarea {
   cursor: not-allowed;
   opacity: 0.7;
 }
+
+.document-file-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.document-file-button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid #d9dded;
+  border-radius: 11px;
+  color: #5558df;
+  background: #ffffff;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.document-file-button:hover:not(:disabled) {
+  border-color: #6262e8;
+  background: #f4f4ff;
+}
+
+.document-file-button.icon-only {
+  width: 42px;
+  padding: 0;
+}
+
+.document-file-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.document-file-error {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  width: 220px;
+  color: #c33d3d;
+  font-size: 0.75rem;
+  text-align: right;
+}

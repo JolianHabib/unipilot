@@ -163,7 +163,39 @@ public sealed class ProjectDocumentsController(
 
         return Ok(documents);
     }
+[HttpGet("{documentId:guid}/file")]
+public async Task<IActionResult> GetFile(
+    Guid projectId,
+    Guid documentId,
+    CancellationToken cancellationToken)
+{
+    if (!TryGetCurrentUserId(
+            out var userId))
+    {
+        return Unauthorized();
+    }
 
+    var documentFile =
+        await documentService.GetFileAsync(
+            userId,
+            projectId,
+            documentId,
+            cancellationToken);
+
+    if (documentFile is null)
+    {
+        return NotFound(new
+        {
+            message =
+                "Document was not found."
+        });
+    }
+
+    return File(
+        documentFile.Content,
+        documentFile.ContentType,
+        enableRangeProcessing: true);
+}
     [HttpDelete("{documentId:guid}")]
     public async Task<IActionResult> Delete(
         Guid projectId,

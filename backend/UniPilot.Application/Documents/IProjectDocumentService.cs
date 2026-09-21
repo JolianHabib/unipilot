@@ -18,6 +18,12 @@ public interface IProjectDocumentService
             Guid documentId,
             CancellationToken cancellationToken = default);
 
+    Task<ProjectDocumentFileResult?> GetFileAsync(
+        Guid ownerId,
+        Guid academicProjectId,
+        Guid documentId,
+        CancellationToken cancellationToken = default);
+
     Task<bool> DeleteAsync(
         Guid ownerId,
         Guid academicProjectId,

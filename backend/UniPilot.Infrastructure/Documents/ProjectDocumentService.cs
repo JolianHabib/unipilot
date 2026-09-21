@@ -225,7 +225,58 @@ public sealed class ProjectDocumentService(
             .ToListAsync(
                 cancellationToken);
     }
+public async Task<ProjectDocumentFileResult?>
+    GetFileAsync(
+        Guid ownerId,
+        Guid academicProjectId,
+        Guid documentId,
+        CancellationToken cancellationToken = default)
+{
+    var document =
+        await dbContext.ProjectDocuments
+            .AsNoTracking()
+            .Where(existingDocument =>
+                existingDocument.Id ==
+                    documentId &&
+                existingDocument
+                    .AcademicProjectId ==
+                    academicProjectId &&
+                existingDocument
+                    .AcademicProject
+                    .Course
+                    .OwnerId ==
+                    ownerId)
+            .Select(existingDocument =>
+                new
+                {
+                    existingDocument
+                        .StorageKey,
+                    existingDocument
+                        .ContentType,
+                    existingDocument
+                        .OriginalFileName
+                })
+            .SingleOrDefaultAsync(
+                cancellationToken);
 
+    if (document is null)
+    {
+        return null;
+    }
+
+    var content =
+        await fileStorage.OpenReadAsync(
+            document.StorageKey,
+            cancellationToken);
+
+    return new ProjectDocumentFileResult(
+        content,
+        string.IsNullOrWhiteSpace(
+            document.ContentType)
+            ? "application/pdf"
+            : document.ContentType,
+        document.OriginalFileName);
+}
     public async Task<bool> DeleteAsync(
         Guid ownerId,
         Guid academicProjectId,

@@ -43,7 +43,9 @@ import {
 import {
   DeleteDocumentButton,
 } from "../components/DeleteDocumentButton";
-
+import {
+  DocumentFileButtons,
+} from "../components/DocumentFileButtons";
 type ProjectWorkspacePageProps = {
   token: string;
   project: AcademicProject;
@@ -691,6 +693,17 @@ export function ProjectWorkspacePage({
                           
                           
                         )}
+                        <DocumentFileButtons
+  token={token}
+  projectId={project.id}
+  documentId={document.id}
+  fileName={
+    document.originalFileName
+  }
+  onSessionExpired={
+    onSessionExpired
+  }
+/>
                         <DeleteDocumentButton
   token={token}
   projectId={project.id}
