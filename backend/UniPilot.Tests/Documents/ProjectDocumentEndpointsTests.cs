@@ -238,6 +238,96 @@ public sealed class ProjectDocumentEndpointsTests
             HttpStatusCode.NotFound,
             response.StatusCode);
     }
+    [Fact]
+public async Task RetryProcessing_FailedDocument_ReturnsUnprocessableEntity()
+{
+    var token =
+        await RegisterAndLoginAsync();
+
+    var projectId =
+        await CreateProjectAsync(token);
+
+    var documentId =
+        await UploadDocumentAsync(
+            token,
+            projectId,
+            CreatePdfBytes());
+
+    using var request =
+        CreateAuthorizedRequest(
+            HttpMethod.Post,
+            $"/api/projects/{projectId}/documents/{documentId}/retry",
+            token);
+
+    var response =
+        await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.UnprocessableEntity,
+        response.StatusCode);
+}
+
+[Fact]
+public async Task RetryProcessing_WithoutToken_ReturnsUnauthorized()
+{
+    var ownerToken =
+        await RegisterAndLoginAsync();
+
+    var projectId =
+        await CreateProjectAsync(
+            ownerToken);
+
+    var documentId =
+        await UploadDocumentAsync(
+            ownerToken,
+            projectId,
+            CreatePdfBytes());
+
+    using var request =
+        new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/projects/{projectId}/documents/{documentId}/retry");
+
+    var response =
+        await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.Unauthorized,
+        response.StatusCode);
+}
+
+[Fact]
+public async Task RetryProcessing_AsAnotherUser_ReturnsNotFound()
+{
+    var ownerToken =
+        await RegisterAndLoginAsync();
+
+    var otherToken =
+        await RegisterAndLoginAsync();
+
+    var projectId =
+        await CreateProjectAsync(
+            ownerToken);
+
+    var documentId =
+        await UploadDocumentAsync(
+            ownerToken,
+            projectId,
+            CreatePdfBytes());
+
+    using var request =
+        CreateAuthorizedRequest(
+            HttpMethod.Post,
+            $"/api/projects/{projectId}/documents/{documentId}/retry",
+            otherToken);
+
+    var response =
+        await _client.SendAsync(request);
+
+    Assert.Equal(
+        HttpStatusCode.NotFound,
+        response.StatusCode);
+}
 
     private async Task<Guid> UploadDocumentAsync(
         string token,
