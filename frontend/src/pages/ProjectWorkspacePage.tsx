@@ -59,6 +59,9 @@ import {
   RequirementCompletionButton,
 } from "../components/RequirementCompletionButton";
 
+import {
+  ProjectActivityPanel,
+} from "../components/ProjectActivityPanel";
 
 type ProjectWorkspacePageProps = {
   token: string;
@@ -71,7 +74,8 @@ type ProjectTab =
   | "overview"
   | "documents"
   | "requirements"
-  | "tasks";
+  | "tasks"
+  | "activity";
 
 export function ProjectWorkspacePage({
   token,
@@ -502,6 +506,19 @@ setActiveTab("tasks");
           >
             Task board
           </button>
+          <button
+  className={
+    activeTab === "activity"
+      ? "active"
+      : ""
+  }
+  type="button"
+  onClick={() =>
+    setActiveTab("activity")
+  }
+>
+  Activity
+</button>
         </nav>
 
         {isLoading && (
@@ -940,6 +957,17 @@ setActiveTab("tasks");
               }}
             />
           )}
+          {!isLoading &&
+  !error &&
+  activeTab === "activity" && (
+    <ProjectActivityPanel
+      token={token}
+      projectId={project.id}
+      onSessionExpired={
+        onSessionExpired
+      }
+    />
+  )}
       </div>
 
       <UploadDocumentModal
