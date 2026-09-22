@@ -3620,3 +3620,118 @@ textarea {
   position: relative;
   z-index: 9999;
 }
+.global-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.search-results-heading h1 {
+  margin: 5px 0 8px;
+  color: #151b31;
+  font-size: 2rem;
+}
+
+.search-results-heading p:last-child {
+  margin: 0;
+  color: #7c8399;
+}
+
+.search-result-group {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.search-result-group h2 {
+  margin: 0;
+  color: #171d33;
+  font-size: 1.15rem;
+}
+
+.search-result-list {
+  overflow: hidden;
+  border: 1px solid #e4e7f0;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(28, 35, 70, 0.05);
+}
+
+.search-result-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 17px 19px;
+  border: 0;
+  border-bottom: 1px solid #eceef5;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-result-item:last-child {
+  border-bottom: 0;
+}
+
+.search-result-item:hover:not(:disabled) {
+  background: #f8f8ff;
+}
+
+.search-result-item:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.search-result-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 12px;
+}
+
+.search-result-icon.purple {
+  color: #5b5ce2;
+  background: #eeeeff;
+}
+
+.search-result-icon.blue {
+  color: #2879cf;
+  background: #e9f4ff;
+}
+
+.search-result-icon.green {
+  color: #078a70;
+  background: #e6f7f2;
+}
+
+.search-result-content {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-result-content strong {
+  overflow: hidden;
+  color: #1b2137;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result-content span {
+  overflow: hidden;
+  color: #858ca1;
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result-item > svg {
+  flex-shrink: 0;
+  color: #8d94a8;
+}
