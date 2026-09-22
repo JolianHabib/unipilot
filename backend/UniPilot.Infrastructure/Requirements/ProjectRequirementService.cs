@@ -87,7 +87,6 @@ public sealed class ProjectRequirementService(
         };
 
         dbContext.ProjectRequirements.Add(requirement);
-
         await dbContext.SaveChangesAsync(cancellationToken);
 
         await activityService.RecordAsync(
@@ -152,6 +151,23 @@ public sealed class ProjectRequirementService(
             sourcePages,
             cancellationToken);
 
+        var projectRequirementValues = await dbContext.ProjectRequirements
+            .AsNoTracking()
+            .Where(requirement =>
+                requirement.AcademicProjectId == document.AcademicProjectId)
+            .Select(requirement => new
+            {
+                requirement.Title,
+                requirement.Description
+            })
+            .ToListAsync(cancellationToken);
+
+        var knownRequirementKeys = projectRequirementValues
+            .Select(requirement => CreateComparisonKey(
+                requirement.Title,
+                requirement.Description))
+            .ToHashSet(StringComparer.Ordinal);
+
         var addedCount = 0;
 
         foreach (var extracted in extractedRequirements)
@@ -162,13 +178,22 @@ public sealed class ProjectRequirementService(
                 continue;
             }
 
+            var title = Truncate(extracted.Title.Trim(), 250);
+            var description = extracted.Description.Trim();
+
+            if (!knownRequirementKeys.Add(
+                    CreateComparisonKey(title, description)))
+            {
+                continue;
+            }
+
             dbContext.ProjectRequirements.Add(new ProjectRequirement
             {
                 AcademicProjectId = document.AcademicProjectId,
                 ProjectDocumentId = document.Id,
                 SourcePageNumber = extracted.SourcePageNumber,
-                Title = Truncate(extracted.Title.Trim(), 250),
-                Description = extracted.Description.Trim(),
+                Title = title,
+                Description = description,
                 Type = extracted.Type,
                 Priority = extracted.Priority
             });
@@ -397,5 +422,23 @@ public sealed class ProjectRequirementService(
         return value.Length <= maximumLength
             ? value
             : value[..maximumLength];
+    }
+
+    private static string CreateComparisonKey(
+        string title,
+        string description)
+    {
+        return $"{NormalizeForComparison(title)}\u001f" +
+            NormalizeForComparison(description);
+    }
+
+    private static string NormalizeForComparison(string value)
+    {
+        return string.Join(
+                ' ',
+                value.Trim().Split(
+                    (char[]?)null,
+                    StringSplitOptions.RemoveEmptyEntries))
+            .ToUpperInvariant();
     }
 }

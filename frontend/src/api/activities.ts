@@ -4,12 +4,16 @@ const API_BASE_URL =
 
 export type ProjectActivityType =
   | "ProjectCreated"
+  | "ProjectStatusChanged"
   | "DocumentUploaded"
   | "DocumentProcessed"
   | "DocumentProcessingFailed"
   | "RequirementsExtracted"
+  | "RequirementCreated"
   | "RequirementCompleted"
   | "RequirementReopened"
+  | "RequirementUpdated"
+  | "RequirementDeleted"
   | "TaskCreated"
   | "TaskUpdated"
   | "TaskMoved"
@@ -40,9 +44,7 @@ async function readError(
     const body =
       (await response.json()) as ApiError;
 
-    return new Error(
-      body.message ?? fallback
-    );
+    return new Error(body.message ?? fallback);
   } catch {
     return new Error(fallback);
   }

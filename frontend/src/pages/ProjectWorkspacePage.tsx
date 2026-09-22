@@ -70,6 +70,10 @@ import {
 } from "../components/ProjectActivityPanel";
 
 import {
+  ExportProjectReportButton,
+} from "../components/ExportProjectReportButton";
+
+import {
   CreateRequirementButton,
 } from "../components/CreateRequirementButton";
 
@@ -516,9 +520,21 @@ setActiveTab("tasks");
           Course
         </button>
 
-        <div className="workspace-brand">
-          <Sparkles size={18} />
-          <span>UniPilot</span>
+        <div className="workspace-topbar-actions">
+          <ExportProjectReportButton
+            token={token}
+            project={project}
+            documents={documents}
+            requirements={requirements}
+            onSessionExpired={
+              onSessionExpired
+            }
+          />
+
+          <div className="workspace-brand">
+            <Sparkles size={18} />
+            <span>UniPilot</span>
+          </div>
         </div>
       </header>
 
