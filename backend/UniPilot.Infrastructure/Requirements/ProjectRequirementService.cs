@@ -1,5 +1,8 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using UniPilot.Application.Activities;
 using UniPilot.Application.Requirements;
+using UniPilot.Domain.Activities;
 using UniPilot.Domain.Entities;
 using UniPilot.Domain.Tasks;
 using UniPilot.Infrastructure.Persistence;
@@ -8,7 +11,8 @@ namespace UniPilot.Infrastructure.Requirements;
 
 public sealed class ProjectRequirementService(
     AppDbContext dbContext,
-    IRequirementExtractor requirementExtractor)
+    IRequirementExtractor requirementExtractor,
+    IProjectActivityService activityService)
     : IProjectRequirementService
 {
     public async Task<IReadOnlyList<ProjectRequirementResult>?>
@@ -17,12 +21,11 @@ public sealed class ProjectRequirementService(
             Guid academicProjectId,
             CancellationToken cancellationToken = default)
     {
-        var ownsProject =
-            await dbContext.AcademicProjects.AnyAsync(
-                project =>
-                    project.Id == academicProjectId &&
-                    project.Course.OwnerId == ownerId,
-                cancellationToken);
+        var ownsProject = await dbContext.AcademicProjects.AnyAsync(
+            project =>
+                project.Id == academicProjectId &&
+                project.Course.OwnerId == ownerId,
+            cancellationToken);
 
         if (!ownsProject)
         {
@@ -32,24 +35,10 @@ public sealed class ProjectRequirementService(
         return await dbContext.ProjectRequirements
             .AsNoTracking()
             .Where(requirement =>
-                requirement.AcademicProjectId ==
-                    academicProjectId)
-            .OrderBy(requirement =>
-                requirement.SourcePageNumber)
-            .ThenBy(requirement =>
-                requirement.CreatedAtUtc)
-            .Select(requirement =>
-                new ProjectRequirementResult(
-                    requirement.Id,
-                    requirement.AcademicProjectId,
-                    requirement.ProjectDocumentId,
-                    requirement.SourcePageNumber,
-                    requirement.Title,
-                    requirement.Description,
-                    requirement.Type.ToString(),
-                    requirement.Priority.ToString(),
-                    requirement.IsCompleted,
-                    requirement.CreatedAtUtc))
+                requirement.AcademicProjectId == academicProjectId)
+            .OrderBy(requirement => requirement.SourcePageNumber)
+            .ThenBy(requirement => requirement.CreatedAtUtc)
+            .Select(ResultProjection)
             .ToListAsync(cancellationToken);
     }
 
@@ -61,24 +50,9 @@ public sealed class ProjectRequirementService(
         return await dbContext.ProjectRequirements
             .AsNoTracking()
             .Where(requirement =>
-                requirement
-                    .AcademicProject
-                    .Course
-                    .OwnerId == ownerId)
-            .OrderByDescending(requirement =>
-                requirement.CreatedAtUtc)
-            .Select(requirement =>
-                new ProjectRequirementResult(
-                    requirement.Id,
-                    requirement.AcademicProjectId,
-                    requirement.ProjectDocumentId,
-                    requirement.SourcePageNumber,
-                    requirement.Title,
-                    requirement.Description,
-                    requirement.Type.ToString(),
-                    requirement.Priority.ToString(),
-                    requirement.IsCompleted,
-                    requirement.CreatedAtUtc))
+                requirement.AcademicProject.Course.OwnerId == ownerId)
+            .OrderByDescending(requirement => requirement.CreatedAtUtc)
+            .Select(ResultProjection)
             .ToListAsync(cancellationToken);
     }
 
@@ -88,167 +62,128 @@ public sealed class ProjectRequirementService(
             Guid documentId,
             CancellationToken cancellationToken = default)
     {
-        var document =
-            await dbContext.ProjectDocuments
-                .Include(projectDocument =>
-                    projectDocument.Pages)
-                .SingleOrDefaultAsync(
-                    projectDocument =>
-                        projectDocument.Id == documentId &&
-                        projectDocument.AcademicProject
-                            .Course.OwnerId == ownerId,
-                    cancellationToken);
+        var document = await dbContext.ProjectDocuments
+            .Include(projectDocument => projectDocument.Pages)
+            .SingleOrDefaultAsync(
+                projectDocument =>
+                    projectDocument.Id == documentId &&
+                    projectDocument.AcademicProject.Course.OwnerId == ownerId,
+                cancellationToken);
 
         if (document is null)
         {
             return null;
         }
 
-        if (document.ProcessingStatus !=
-            DocumentProcessingStatus.Ready)
+        if (document.ProcessingStatus != DocumentProcessingStatus.Ready)
         {
             throw new InvalidOperationException(
                 "The document is not ready for requirement extraction.");
         }
 
-        var existingRequirements =
-            await dbContext.ProjectRequirements
-                .AsNoTracking()
-                .Where(requirement =>
-                    requirement.ProjectDocumentId ==
-                        documentId)
-                .OrderBy(requirement =>
-                    requirement.SourcePageNumber)
-                .ThenBy(requirement =>
-                    requirement.CreatedAtUtc)
-                .Select(requirement =>
-                    new ProjectRequirementResult(
-                        requirement.Id,
-                        requirement.AcademicProjectId,
-                        requirement.ProjectDocumentId,
-                        requirement.SourcePageNumber,
-                        requirement.Title,
-                        requirement.Description,
-                        requirement.Type.ToString(),
-                        requirement.Priority.ToString(),
-                        requirement.IsCompleted,
-                        requirement.CreatedAtUtc))
-                .ToListAsync(cancellationToken);
+        var existingRequirements = await dbContext.ProjectRequirements
+            .AsNoTracking()
+            .Where(requirement =>
+                requirement.ProjectDocumentId == documentId)
+            .OrderBy(requirement => requirement.SourcePageNumber)
+            .ThenBy(requirement => requirement.CreatedAtUtc)
+            .Select(ResultProjection)
+            .ToListAsync(cancellationToken);
 
         if (existingRequirements.Count > 0)
         {
             return existingRequirements;
         }
 
-        var sourcePages =
-            document.Pages
-                .OrderBy(page => page.PageNumber)
-                .Where(page =>
-                    !string.IsNullOrWhiteSpace(page.Text))
-                .Select(page =>
-                    new RequirementSourcePage(
-                        page.PageNumber,
-                        page.Text))
-                .ToList();
+        var sourcePages = document.Pages
+            .OrderBy(page => page.PageNumber)
+            .Where(page => !string.IsNullOrWhiteSpace(page.Text))
+            .Select(page => new RequirementSourcePage(
+                page.PageNumber,
+                page.Text))
+            .ToList();
 
-        var extractedRequirements =
-            await requirementExtractor.ExtractAsync(
-                sourcePages,
-                cancellationToken);
+        var extractedRequirements = await requirementExtractor.ExtractAsync(
+            sourcePages,
+            cancellationToken);
+
+        var addedCount = 0;
 
         foreach (var extracted in extractedRequirements)
         {
             if (string.IsNullOrWhiteSpace(extracted.Title) ||
-                string.IsNullOrWhiteSpace(
-                    extracted.Description))
+                string.IsNullOrWhiteSpace(extracted.Description))
             {
                 continue;
             }
 
-            dbContext.ProjectRequirements.Add(
-                new ProjectRequirement
-                {
-                    AcademicProjectId =
-                        document.AcademicProjectId,
+            dbContext.ProjectRequirements.Add(new ProjectRequirement
+            {
+                AcademicProjectId = document.AcademicProjectId,
+                ProjectDocumentId = document.Id,
+                SourcePageNumber = extracted.SourcePageNumber,
+                Title = Truncate(extracted.Title.Trim(), 250),
+                Description = extracted.Description.Trim(),
+                Type = extracted.Type,
+                Priority = extracted.Priority
+            });
 
-                    ProjectDocumentId =
-                        document.Id,
-
-                    SourcePageNumber =
-                        extracted.SourcePageNumber,
-
-                    Title =
-                        Truncate(extracted.Title.Trim(), 250),
-
-                    Description =
-                        extracted.Description.Trim(),
-
-                    Type =
-                        extracted.Type,
-
-                    Priority =
-                        extracted.Priority
-                });
+            addedCount++;
         }
 
-        await dbContext.SaveChangesAsync(
-            cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (addedCount > 0)
+        {
+            await activityService.RecordAsync(
+                ownerId,
+                document.AcademicProjectId,
+                ProjectActivityType.RequirementsExtracted,
+                "Requirements extracted",
+                $"{addedCount} requirement(s) were extracted from " +
+                $"{document.OriginalFileName}.",
+                cancellationToken);
+        }
 
         return await dbContext.ProjectRequirements
             .AsNoTracking()
             .Where(requirement =>
-                requirement.ProjectDocumentId ==
-                    documentId)
-            .OrderBy(requirement =>
-                requirement.SourcePageNumber)
-            .ThenBy(requirement =>
-                requirement.CreatedAtUtc)
-            .Select(requirement =>
-                new ProjectRequirementResult(
-                    requirement.Id,
-                    requirement.AcademicProjectId,
-                    requirement.ProjectDocumentId,
-                    requirement.SourcePageNumber,
-                    requirement.Title,
-                    requirement.Description,
-                    requirement.Type.ToString(),
-                    requirement.Priority.ToString(),
-                    requirement.IsCompleted,
-                    requirement.CreatedAtUtc))
+                requirement.ProjectDocumentId == documentId)
+            .OrderBy(requirement => requirement.SourcePageNumber)
+            .ThenBy(requirement => requirement.CreatedAtUtc)
+            .Select(ResultProjection)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<ProjectRequirementResult?>
-        SetCompletionAsync(
-            Guid ownerId,
-            Guid requirementId,
-            bool isCompleted,
-            CancellationToken cancellationToken = default)
+    public async Task<ProjectRequirementResult?> SetCompletionAsync(
+        Guid ownerId,
+        Guid requirementId,
+        bool isCompleted,
+        CancellationToken cancellationToken = default)
     {
-        var requirement =
-            await dbContext.ProjectRequirements
-                .SingleOrDefaultAsync(
-                    item =>
-                        item.Id == requirementId &&
-                        item.AcademicProject.Course.OwnerId ==
-                            ownerId,
-                    cancellationToken);
+        var requirement = await dbContext.ProjectRequirements
+            .SingleOrDefaultAsync(
+                item =>
+                    item.Id == requirementId &&
+                    item.AcademicProject.Course.OwnerId == ownerId,
+                cancellationToken);
 
         if (requirement is null)
         {
             return null;
         }
 
+        var completionChanged =
+            requirement.IsCompleted != isCompleted;
+
         requirement.IsCompleted = isCompleted;
 
-        var projectTasks =
-            await dbContext.ProjectTasks
-                .Where(task =>
-                    task.AcademicProjectId ==
-                        requirement.AcademicProjectId)
-                .OrderBy(task => task.Position)
-                .ThenBy(task => task.CreatedAtUtc)
-                .ToListAsync(cancellationToken);
+        var projectTasks = await dbContext.ProjectTasks
+            .Where(task =>
+                task.AcademicProjectId == requirement.AcademicProjectId)
+            .OrderBy(task => task.Position)
+            .ThenBy(task => task.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
 
         var targetStatus = isCompleted
             ? ProjectTaskStatus.Done
@@ -257,8 +192,7 @@ public sealed class ProjectRequirementService(
         var now = DateTime.UtcNow;
 
         foreach (var task in projectTasks.Where(task =>
-                     task.ProjectRequirementId ==
-                         requirement.Id &&
+                     task.ProjectRequirementId == requirement.Id &&
                      task.Status != targetStatus))
         {
             task.Status = targetStatus;
@@ -268,20 +202,26 @@ public sealed class ProjectRequirementService(
 
         NormalizeTaskPositions(projectTasks);
 
-        await dbContext.SaveChangesAsync(
-            cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new ProjectRequirementResult(
-            requirement.Id,
-            requirement.AcademicProjectId,
-            requirement.ProjectDocumentId,
-            requirement.SourcePageNumber,
-            requirement.Title,
-            requirement.Description,
-            requirement.Type.ToString(),
-            requirement.Priority.ToString(),
-            requirement.IsCompleted,
-            requirement.CreatedAtUtc);
+        if (completionChanged)
+        {
+            await activityService.RecordAsync(
+                ownerId,
+                requirement.AcademicProjectId,
+                isCompleted
+                    ? ProjectActivityType.RequirementCompleted
+                    : ProjectActivityType.RequirementReopened,
+                isCompleted
+                    ? "Requirement completed"
+                    : "Requirement reopened",
+                isCompleted
+                    ? $"{requirement.Title} was marked as completed."
+                    : $"{requirement.Title} was marked as incomplete.",
+                cancellationToken);
+        }
+
+        return MapResult(requirement);
     }
 
     public async Task<bool> DeleteAsync(
@@ -289,72 +229,71 @@ public sealed class ProjectRequirementService(
         Guid requirementId,
         CancellationToken cancellationToken = default)
     {
-        var requirement =
-            await dbContext.ProjectRequirements
-                .SingleOrDefaultAsync(
-                    item =>
-                        item.Id == requirementId &&
-                        item.AcademicProject.Course.OwnerId ==
-                            ownerId,
-                    cancellationToken);
+        var requirement = await dbContext.ProjectRequirements
+            .SingleOrDefaultAsync(
+                item =>
+                    item.Id == requirementId &&
+                    item.AcademicProject.Course.OwnerId == ownerId,
+                cancellationToken);
 
         if (requirement is null)
         {
             return false;
         }
 
-        dbContext.ProjectRequirements.Remove(requirement);
+        var academicProjectId =
+            requirement.AcademicProjectId;
 
-        await dbContext.SaveChangesAsync(
+        var deletedTitle = requirement.Title;
+
+        dbContext.ProjectRequirements.Remove(requirement);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        await activityService.RecordAsync(
+            ownerId,
+            academicProjectId,
+            ProjectActivityType.RequirementDeleted,
+            "Requirement deleted",
+            $"{deletedTitle} was deleted.",
             cancellationToken);
 
         return true;
     }
 
-    public async Task<ProjectRequirementResult?>
-        UpdateAsync(
-            Guid ownerId,
-            Guid requirementId,
-            UpdateProjectRequirementCommand command,
-            CancellationToken cancellationToken = default)
+    public async Task<ProjectRequirementResult?> UpdateAsync(
+        Guid ownerId,
+        Guid requirementId,
+        UpdateProjectRequirementCommand command,
+        CancellationToken cancellationToken = default)
     {
-        var requirement =
-            await dbContext.ProjectRequirements
-                .SingleOrDefaultAsync(
-                    item =>
-                        item.Id == requirementId &&
-                        item.AcademicProject.Course.OwnerId ==
-                            ownerId,
-                    cancellationToken);
+        var requirement = await dbContext.ProjectRequirements
+            .SingleOrDefaultAsync(
+                item =>
+                    item.Id == requirementId &&
+                    item.AcademicProject.Course.OwnerId == ownerId,
+                cancellationToken);
 
         if (requirement is null)
         {
             return null;
         }
 
-        requirement.Title =
-            Truncate(command.Title.Trim(), 250);
-
-        requirement.Description =
-            command.Description.Trim();
-
+        requirement.Title = Truncate(command.Title.Trim(), 250);
+        requirement.Description = command.Description.Trim();
         requirement.Type = command.Type;
         requirement.Priority = command.Priority;
 
-        await dbContext.SaveChangesAsync(
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        await activityService.RecordAsync(
+            ownerId,
+            requirement.AcademicProjectId,
+            ProjectActivityType.RequirementUpdated,
+            "Requirement updated",
+            $"{requirement.Title} was updated.",
             cancellationToken);
 
-        return new ProjectRequirementResult(
-            requirement.Id,
-            requirement.AcademicProjectId,
-            requirement.ProjectDocumentId,
-            requirement.SourcePageNumber,
-            requirement.Title,
-            requirement.Description,
-            requirement.Type.ToString(),
-            requirement.Priority.ToString(),
-            requirement.IsCompleted,
-            requirement.CreatedAtUtc);
+        return MapResult(requirement);
     }
 
     private static void NormalizeTaskPositions(
@@ -368,14 +307,43 @@ public sealed class ProjectRequirementService(
                 .ThenBy(task => task.CreatedAtUtc)
                 .ToList();
 
-            for (var index = 0;
-                 index < tasksInStatus.Count;
-                 index++)
+            for (var index = 0; index < tasksInStatus.Count; index++)
             {
                 tasksInStatus[index].Position = index;
             }
         }
     }
+
+    private static ProjectRequirementResult MapResult(
+        ProjectRequirement requirement)
+    {
+        return new ProjectRequirementResult(
+            requirement.Id,
+            requirement.AcademicProjectId,
+            requirement.ProjectDocumentId,
+            requirement.SourcePageNumber,
+            requirement.Title,
+            requirement.Description,
+            requirement.Type.ToString(),
+            requirement.Priority.ToString(),
+            requirement.IsCompleted,
+            requirement.CreatedAtUtc);
+    }
+
+    private static readonly Expression<
+        Func<ProjectRequirement, ProjectRequirementResult>>
+        ResultProjection = requirement =>
+            new ProjectRequirementResult(
+                requirement.Id,
+                requirement.AcademicProjectId,
+                requirement.ProjectDocumentId,
+                requirement.SourcePageNumber,
+                requirement.Title,
+                requirement.Description,
+                requirement.Type.ToString(),
+                requirement.Priority.ToString(),
+                requirement.IsCompleted,
+                requirement.CreatedAtUtc);
 
     private static string Truncate(
         string value,

@@ -28,4 +28,7 @@ public sealed class AcademicProject
 
     public ICollection<ProjectTask> Tasks { get; set; } =
         new List<ProjectTask>();
+
+    public ICollection<ProjectActivity> Activities { get; set; } =
+        new List<ProjectActivity>();
 }

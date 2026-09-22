@@ -28,6 +28,9 @@ public sealed class AppDbContext(
     public DbSet<ProjectTask> ProjectTasks =>
         Set<ProjectTask>();
 
+    public DbSet<ProjectActivity> ProjectActivities =>
+        Set<ProjectActivity>();
+
     public DbSet<Notification> Notifications =>
         Set<Notification>();
 
@@ -377,6 +380,49 @@ notification.HasIndex(x => new
 });
 
 notification.HasOne(x => x.User)
+    .WithMany()
+    .HasForeignKey(x => x.UserId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+
+    var projectActivity =
+    modelBuilder.Entity<ProjectActivity>();
+
+projectActivity.ToTable(
+    "project_activities");
+
+projectActivity.HasKey(x => x.Id);
+
+projectActivity.Property(x => x.Type)
+    .HasConversion<string>()
+    .IsRequired()
+    .HasMaxLength(50);
+
+projectActivity.Property(x => x.Title)
+    .IsRequired()
+    .HasMaxLength(200);
+
+projectActivity.Property(x => x.Description)
+    .HasMaxLength(1000);
+
+projectActivity.Property(x => x.CreatedAtUtc)
+    .IsRequired();
+
+projectActivity.HasIndex(x => new
+{
+    x.AcademicProjectId,
+    x.CreatedAtUtc
+});
+
+projectActivity.HasOne(x =>
+        x.AcademicProject)
+    .WithMany(x =>
+        x.Activities)
+    .HasForeignKey(x =>
+        x.AcademicProjectId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+projectActivity.HasOne(x => x.User)
     .WithMany()
     .HasForeignKey(x => x.UserId)
     .OnDelete(DeleteBehavior.Cascade);

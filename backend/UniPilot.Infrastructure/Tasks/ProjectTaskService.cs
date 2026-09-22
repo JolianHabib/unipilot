@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using UniPilot.Application.Activities;
 using UniPilot.Application.Tasks;
+using UniPilot.Domain.Activities;
 using UniPilot.Domain.Entities;
 using UniPilot.Domain.Tasks;
 using UniPilot.Infrastructure.Persistence;
@@ -7,7 +9,9 @@ using UniPilot.Infrastructure.Persistence;
 namespace UniPilot.Infrastructure.Tasks;
 
 public sealed class ProjectTaskService(
-    AppDbContext dbContext) : IProjectTaskService
+    AppDbContext dbContext,
+    IProjectActivityService activityService)
+    : IProjectTaskService
 {
     public async Task<IReadOnlyList<ProjectTaskResult>?>
         GetByProjectAsync(
@@ -26,8 +30,7 @@ public sealed class ProjectTaskService(
         return await dbContext.ProjectTasks
             .AsNoTracking()
             .Where(task =>
-                task.AcademicProjectId ==
-                academicProjectId)
+                task.AcademicProjectId == academicProjectId)
             .OrderBy(task => task.Status)
             .ThenBy(task => task.Position)
             .ThenBy(task => task.CreatedAtUtc)
@@ -69,8 +72,7 @@ public sealed class ProjectTaskService(
 
         var lastPosition = await dbContext.ProjectTasks
             .Where(task =>
-                task.AcademicProjectId ==
-                    command.AcademicProjectId &&
+                task.AcademicProjectId == command.AcademicProjectId &&
                 task.Status == ProjectTaskStatus.ToDo)
             .Select(task => (int?)task.Position)
             .MaxAsync(cancellationToken) ?? -1;
@@ -79,34 +81,29 @@ public sealed class ProjectTaskService(
 
         var projectTask = new ProjectTask
         {
-            AcademicProjectId =
-                command.AcademicProjectId,
-
-            ProjectRequirementId =
-                command.ProjectRequirementId,
-
+            AcademicProjectId = command.AcademicProjectId,
+            ProjectRequirementId = command.ProjectRequirementId,
             Title = command.Title.Trim(),
-
-            Description =
-                string.IsNullOrWhiteSpace(
-                    command.Description)
-                    ? null
-                    : command.Description.Trim(),
-
+            Description = string.IsNullOrWhiteSpace(command.Description)
+                ? null
+                : command.Description.Trim(),
             Status = ProjectTaskStatus.ToDo,
             Priority = command.Priority,
-
-            DueDateUtc =
-                command.DueDateUtc?.ToUniversalTime(),
-
+            DueDateUtc = command.DueDateUtc?.ToUniversalTime(),
             Position = lastPosition + 1,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
 
         dbContext.ProjectTasks.Add(projectTask);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
-        await dbContext.SaveChangesAsync(
+        await activityService.RecordAsync(
+            command.OwnerId,
+            command.AcademicProjectId,
+            ProjectActivityType.TaskCreated,
+            "Task created",
+            $"{projectTask.Title} was added to To Do.",
             cancellationToken);
 
         return Map(projectTask);
@@ -122,10 +119,8 @@ public sealed class ProjectTaskService(
             .SingleOrDefaultAsync(
                 task =>
                     task.Id == command.ProjectTaskId &&
-                    task.AcademicProjectId ==
-                        command.AcademicProjectId &&
-                    task.AcademicProject.Course.OwnerId ==
-                        command.OwnerId,
+                    task.AcademicProjectId == command.AcademicProjectId &&
+                    task.AcademicProject.Course.OwnerId == command.OwnerId,
                 cancellationToken);
 
         if (projectTask is null)
@@ -142,28 +137,24 @@ public sealed class ProjectTaskService(
                 "The selected requirement does not belong to this project.");
         }
 
-        projectTask.ProjectRequirementId =
-            command.ProjectRequirementId;
-
-        projectTask.Title =
-            command.Title.Trim();
-
+        projectTask.ProjectRequirementId = command.ProjectRequirementId;
+        projectTask.Title = command.Title.Trim();
         projectTask.Description =
-            string.IsNullOrWhiteSpace(
-                command.Description)
+            string.IsNullOrWhiteSpace(command.Description)
                 ? null
                 : command.Description.Trim();
+        projectTask.Priority = command.Priority;
+        projectTask.DueDateUtc = command.DueDateUtc?.ToUniversalTime();
+        projectTask.UpdatedAtUtc = DateTime.UtcNow;
 
-        projectTask.Priority =
-            command.Priority;
+        await dbContext.SaveChangesAsync(cancellationToken);
 
-        projectTask.DueDateUtc =
-            command.DueDateUtc?.ToUniversalTime();
-
-        projectTask.UpdatedAtUtc =
-            DateTime.UtcNow;
-
-        await dbContext.SaveChangesAsync(
+        await activityService.RecordAsync(
+            command.OwnerId,
+            command.AcademicProjectId,
+            ProjectActivityType.TaskUpdated,
+            "Task updated",
+            $"{projectTask.Title} was updated.",
             cancellationToken);
 
         return Map(projectTask);
@@ -183,15 +174,13 @@ public sealed class ProjectTaskService(
 
         var projectTasks = await dbContext.ProjectTasks
             .Where(task =>
-                task.AcademicProjectId ==
-                command.AcademicProjectId)
+                task.AcademicProjectId == command.AcademicProjectId)
             .OrderBy(task => task.Position)
             .ThenBy(task => task.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
         var projectTask = projectTasks.SingleOrDefault(
-            task =>
-                task.Id == command.ProjectTaskId);
+            task => task.Id == command.ProjectTaskId);
 
         if (projectTask is null)
         {
@@ -202,24 +191,23 @@ public sealed class ProjectTaskService(
 
         projectTask.Status = command.Status;
         projectTask.UpdatedAtUtc = DateTime.UtcNow;
-        if (projectTask.ProjectRequirementId is Guid requirementId)
-{
-    var linkedRequirement =
-        await dbContext.ProjectRequirements
-            .SingleOrDefaultAsync(
-                requirement =>
-                    requirement.Id == requirementId &&
-                    requirement.AcademicProjectId ==
-                        command.AcademicProjectId,
-                cancellationToken);
 
-    if (linkedRequirement is not null)
-    {
-        linkedRequirement.IsCompleted =
-            command.Status ==
-            ProjectTaskStatus.Done;
-    }
-}
+        if (projectTask.ProjectRequirementId is Guid requirementId)
+        {
+            var linkedRequirement =
+                await dbContext.ProjectRequirements.SingleOrDefaultAsync(
+                    requirement =>
+                        requirement.Id == requirementId &&
+                        requirement.AcademicProjectId ==
+                            command.AcademicProjectId,
+                    cancellationToken);
+
+            if (linkedRequirement is not null)
+            {
+                linkedRequirement.IsCompleted =
+                    command.Status == ProjectTaskStatus.Done;
+            }
+        }
 
         var targetTasks = projectTasks
             .Where(task =>
@@ -234,13 +222,9 @@ public sealed class ProjectTaskService(
             0,
             targetTasks.Count);
 
-        targetTasks.Insert(
-            targetPosition,
-            projectTask);
+        targetTasks.Insert(targetPosition, projectTask);
 
-        for (var index = 0;
-             index < targetTasks.Count;
-             index++)
+        for (var index = 0; index < targetTasks.Count; index++)
         {
             targetTasks[index].Position = index;
         }
@@ -255,15 +239,25 @@ public sealed class ProjectTaskService(
                 .ThenBy(task => task.CreatedAtUtc)
                 .ToList();
 
-            for (var index = 0;
-                 index < previousTasks.Count;
-                 index++)
+            for (var index = 0; index < previousTasks.Count; index++)
             {
                 previousTasks[index].Position = index;
             }
         }
 
-        await dbContext.SaveChangesAsync(
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        await activityService.RecordAsync(
+            command.OwnerId,
+            command.AcademicProjectId,
+            ProjectActivityType.TaskMoved,
+            "Task moved",
+            previousStatus == command.Status
+                ? $"{projectTask.Title} was reordered in " +
+                  $"{FormatStatus(command.Status)}."
+                : $"{projectTask.Title} moved from " +
+                  $"{FormatStatus(previousStatus)} to " +
+                  $"{FormatStatus(command.Status)}.",
             cancellationToken);
 
         return Map(projectTask);
@@ -281,10 +275,8 @@ public sealed class ProjectTaskService(
             .SingleOrDefaultAsync(
                 task =>
                     task.Id == projectTaskId &&
-                    task.AcademicProjectId ==
-                        academicProjectId &&
-                    task.AcademicProject.Course.OwnerId ==
-                        ownerId,
+                    task.AcademicProjectId == academicProjectId &&
+                    task.AcademicProject.Course.OwnerId == ownerId,
                 cancellationToken);
 
         if (projectTask is null)
@@ -293,27 +285,32 @@ public sealed class ProjectTaskService(
         }
 
         var deletedStatus = projectTask.Status;
+        var deletedTitle = projectTask.Title;
 
         dbContext.ProjectTasks.Remove(projectTask);
 
         var remainingTasks = await dbContext.ProjectTasks
             .Where(task =>
-                task.AcademicProjectId ==
-                    academicProjectId &&
+                task.AcademicProjectId == academicProjectId &&
                 task.Status == deletedStatus &&
                 task.Id != projectTaskId)
             .OrderBy(task => task.Position)
             .ThenBy(task => task.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
-        for (var index = 0;
-             index < remainingTasks.Count;
-             index++)
+        for (var index = 0; index < remainingTasks.Count; index++)
         {
             remainingTasks[index].Position = index;
         }
 
-        await dbContext.SaveChangesAsync(
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        await activityService.RecordAsync(
+            ownerId,
+            academicProjectId,
+            ProjectActivityType.TaskDeleted,
+            "Task deleted",
+            $"{deletedTitle} was deleted.",
             cancellationToken);
 
         return true;
@@ -343,15 +340,23 @@ public sealed class ProjectTaskService(
 
         return await dbContext.ProjectRequirements.AnyAsync(
             requirement =>
-                requirement.Id ==
-                    projectRequirementId.Value &&
-                requirement.AcademicProjectId ==
-                    academicProjectId,
+                requirement.Id == projectRequirementId.Value &&
+                requirement.AcademicProjectId == academicProjectId,
             cancellationToken);
     }
 
-    private static ProjectTaskResult Map(
-        ProjectTask projectTask)
+    private static string FormatStatus(ProjectTaskStatus status)
+    {
+        return status switch
+        {
+            ProjectTaskStatus.ToDo => "To Do",
+            ProjectTaskStatus.InProgress => "In Progress",
+            ProjectTaskStatus.Done => "Done",
+            _ => status.ToString()
+        };
+    }
+
+    private static ProjectTaskResult Map(ProjectTask projectTask)
     {
         return new ProjectTaskResult(
             projectTask.Id,
