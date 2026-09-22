@@ -14,8 +14,66 @@ public sealed class ProjectRequirementsController(
     IProjectRequirementService requirementService)
     : ControllerBase
 {
-    [HttpPost(
-        "documents/{documentId:guid}/requirements/extract")]
+    [HttpPost("projects/{projectId:guid}/requirements")]
+    public async Task<IActionResult> Create(
+        Guid projectId,
+        CreateProjectRequirementRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetOwnerId(out var ownerId))
+        {
+            return Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            return BadRequest(new { message = "Title is required." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Description))
+        {
+            return BadRequest(new { message = "Description is required." });
+        }
+
+        if (!Enum.TryParse<RequirementType>(
+                request.Type,
+                ignoreCase: true,
+                out var type))
+        {
+            return BadRequest(new { message = "Invalid requirement type." });
+        }
+
+        if (!Enum.TryParse<RequirementPriority>(
+                request.Priority,
+                ignoreCase: true,
+                out var priority))
+        {
+            return BadRequest(new { message = "Invalid requirement priority." });
+        }
+
+        var command = new CreateProjectRequirementCommand(
+            request.Title,
+            request.Description,
+            type,
+            priority);
+
+        var requirement = await requirementService.CreateAsync(
+            ownerId,
+            projectId,
+            command,
+            cancellationToken);
+
+        if (requirement is null)
+        {
+            return NotFound(new { message = "Project was not found." });
+        }
+
+        return StatusCode(
+            StatusCodes.Status201Created,
+            requirement);
+    }
+
+    [HttpPost("documents/{documentId:guid}/requirements/extract")]
     public async Task<IActionResult> Extract(
         Guid documentId,
         CancellationToken cancellationToken)
@@ -27,12 +85,11 @@ public sealed class ProjectRequirementsController(
 
         try
         {
-            var requirements =
-                await requirementService
-                    .ExtractFromDocumentAsync(
-                        ownerId,
-                        documentId,
-                        cancellationToken);
+            var requirements = await requirementService
+                .ExtractFromDocumentAsync(
+                    ownerId,
+                    documentId,
+                    cancellationToken);
 
             if (requirements is null)
             {
@@ -42,29 +99,20 @@ public sealed class ProjectRequirementsController(
             return Ok(requirements);
         }
         catch (InvalidOperationException exception)
-            when (
-                exception.Message ==
-                "The document is not ready for requirement extraction.")
+            when (exception.Message ==
+                  "The document is not ready for requirement extraction.")
         {
-            return Conflict(
-                new
-                {
-                    message = exception.Message
-                });
+            return Conflict(new { message = exception.Message });
         }
         catch (InvalidOperationException exception)
         {
             return StatusCode(
                 StatusCodes.Status503ServiceUnavailable,
-                new
-                {
-                    message = exception.Message
-                });
+                new { message = exception.Message });
         }
     }
 
-    [HttpGet(
-        "projects/{projectId:guid}/requirements")]
+    [HttpGet("projects/{projectId:guid}/requirements")]
     public async Task<IActionResult> GetByProject(
         Guid projectId,
         CancellationToken cancellationToken)
@@ -74,22 +122,17 @@ public sealed class ProjectRequirementsController(
             return Unauthorized();
         }
 
-        var requirements =
-            await requirementService.GetByProjectAsync(
-                ownerId,
-                projectId,
-                cancellationToken);
+        var requirements = await requirementService.GetByProjectAsync(
+            ownerId,
+            projectId,
+            cancellationToken);
 
-        if (requirements is null)
-        {
-            return NotFound();
-        }
-
-        return Ok(requirements);
+        return requirements is null
+            ? NotFound()
+            : Ok(requirements);
     }
 
-    [HttpPatch(
-        "requirements/{requirementId:guid}")]
+    [HttpPatch("requirements/{requirementId:guid}")]
     public async Task<IActionResult> SetCompletion(
         Guid requirementId,
         SetRequirementCompletionRequest request,
@@ -100,23 +143,18 @@ public sealed class ProjectRequirementsController(
             return Unauthorized();
         }
 
-        var requirement =
-            await requirementService.SetCompletionAsync(
-                ownerId,
-                requirementId,
-                request.IsCompleted,
-                cancellationToken);
+        var requirement = await requirementService.SetCompletionAsync(
+            ownerId,
+            requirementId,
+            request.IsCompleted,
+            cancellationToken);
 
-        if (requirement is null)
-        {
-            return NotFound();
-        }
-
-        return Ok(requirement);
+        return requirement is null
+            ? NotFound()
+            : Ok(requirement);
     }
 
-    [HttpDelete(
-        "requirements/{requirementId:guid}")]
+    [HttpDelete("requirements/{requirementId:guid}")]
     public async Task<IActionResult> Delete(
         Guid requirementId,
         CancellationToken cancellationToken)
@@ -126,22 +164,15 @@ public sealed class ProjectRequirementsController(
             return Unauthorized();
         }
 
-        var deleted =
-            await requirementService.DeleteAsync(
-                ownerId,
-                requirementId,
-                cancellationToken);
+        var deleted = await requirementService.DeleteAsync(
+            ownerId,
+            requirementId,
+            cancellationToken);
 
-        if (!deleted)
-        {
-            return NotFound();
-        }
-
-        return NoContent();
+        return deleted ? NoContent() : NotFound();
     }
 
-    [HttpPut(
-        "requirements/{requirementId:guid}")]
+    [HttpPut("requirements/{requirementId:guid}")]
     public async Task<IActionResult> Update(
         Guid requirementId,
         UpdateProjectRequirementRequest request,
@@ -152,25 +183,14 @@ public sealed class ProjectRequirementsController(
             return Unauthorized();
         }
 
-        if (string.IsNullOrWhiteSpace(
-                request.Title))
+        if (string.IsNullOrWhiteSpace(request.Title))
         {
-            return BadRequest(
-                new
-                {
-                    message = "Title is required."
-                });
+            return BadRequest(new { message = "Title is required." });
         }
 
-        if (string.IsNullOrWhiteSpace(
-                request.Description))
+        if (string.IsNullOrWhiteSpace(request.Description))
         {
-            return BadRequest(
-                new
-                {
-                    message =
-                        "Description is required."
-                });
+            return BadRequest(new { message = "Description is required." });
         }
 
         if (!Enum.TryParse<RequirementType>(
@@ -178,12 +198,7 @@ public sealed class ProjectRequirementsController(
                 ignoreCase: true,
                 out var type))
         {
-            return BadRequest(
-                new
-                {
-                    message =
-                        "Invalid requirement type."
-                });
+            return BadRequest(new { message = "Invalid requirement type." });
         }
 
         if (!Enum.TryParse<RequirementPriority>(
@@ -191,45 +206,31 @@ public sealed class ProjectRequirementsController(
                 ignoreCase: true,
                 out var priority))
         {
-            return BadRequest(
-                new
-                {
-                    message =
-                        "Invalid requirement priority."
-                });
+            return BadRequest(new { message = "Invalid requirement priority." });
         }
 
-        var command =
-            new UpdateProjectRequirementCommand(
-                request.Title,
-                request.Description,
-                type,
-                priority);
+        var command = new UpdateProjectRequirementCommand(
+            request.Title,
+            request.Description,
+            type,
+            priority);
 
-        var requirement =
-            await requirementService.UpdateAsync(
-                ownerId,
-                requirementId,
-                command,
-                cancellationToken);
+        var requirement = await requirementService.UpdateAsync(
+            ownerId,
+            requirementId,
+            command,
+            cancellationToken);
 
-        if (requirement is null)
-        {
-            return NotFound();
-        }
-
-        return Ok(requirement);
+        return requirement is null
+            ? NotFound()
+            : Ok(requirement);
     }
 
-    private bool TryGetOwnerId(
-        out Guid ownerId)
+    private bool TryGetOwnerId(out Guid ownerId)
     {
-        var ownerIdValue =
-            User.FindFirstValue(
-                ClaimTypes.NameIdentifier);
+        var ownerIdValue = User.FindFirstValue(
+            ClaimTypes.NameIdentifier);
 
-        return Guid.TryParse(
-            ownerIdValue,
-            out ownerId);
+        return Guid.TryParse(ownerIdValue, out ownerId);
     }
 }

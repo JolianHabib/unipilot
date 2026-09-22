@@ -56,6 +56,51 @@ public sealed class ProjectRequirementService(
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<ProjectRequirementResult?> CreateAsync(
+        Guid ownerId,
+        Guid academicProjectId,
+        CreateProjectRequirementCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var ownsProject = await dbContext.AcademicProjects.AnyAsync(
+            project =>
+                project.Id == academicProjectId &&
+                project.Course.OwnerId == ownerId,
+            cancellationToken);
+
+        if (!ownsProject)
+        {
+            return null;
+        }
+
+        var requirement = new ProjectRequirement
+        {
+            AcademicProjectId = academicProjectId,
+            ProjectDocumentId = null,
+            SourcePageNumber = null,
+            Title = Truncate(command.Title.Trim(), 250),
+            Description = command.Description.Trim(),
+            Type = command.Type,
+            Priority = command.Priority,
+            IsCompleted = false,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        dbContext.ProjectRequirements.Add(requirement);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        await activityService.RecordAsync(
+            ownerId,
+            academicProjectId,
+            ProjectActivityType.RequirementCreated,
+            "Requirement created",
+            $"{requirement.Title} was created manually.",
+            cancellationToken);
+
+        return MapResult(requirement);
+    }
+
     public async Task<IReadOnlyList<ProjectRequirementResult>?>
         ExtractFromDocumentAsync(
             Guid ownerId,

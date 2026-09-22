@@ -4056,3 +4056,35 @@ textarea {
     padding-right: inherit;
   }
 }
+.requirements-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 18px;
+}
+
+.add-requirement-button {
+  min-height: 43px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1px solid #6262e8;
+  border-radius: 11px;
+  color: #ffffff;
+  background: #5b5ce2;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.add-requirement-button:hover {
+  background: #4e4fd2;
+}
+
+@media (max-width: 600px) {
+  .add-requirement-button {
+    width: 100%;
+  }
+}

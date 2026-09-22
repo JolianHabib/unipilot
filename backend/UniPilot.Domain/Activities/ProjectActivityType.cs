@@ -7,6 +7,7 @@ public enum ProjectActivityType
     DocumentProcessed,
     DocumentProcessingFailed,
     RequirementsExtracted,
+    RequirementCreated,
     RequirementCompleted,
     RequirementReopened,
     RequirementUpdated,

@@ -17,12 +17,15 @@ export type RequirementPriority =
   | "High"
   | "Critical";
 
-export type UpdateRequirementInput = {
+export type RequirementInput = {
   title: string;
   description: string;
   type: RequirementType;
   priority: RequirementPriority;
 };
+
+export type UpdateRequirementInput =
+  RequirementInput;
 
 type ApiError = {
   message?: string;
@@ -46,6 +49,35 @@ async function readError(
   } catch {
     return new Error(fallback);
   }
+}
+
+export async function createRequirement(
+  token: string,
+  projectId: string,
+  input: RequirementInput
+): Promise<ProjectRequirement> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/projects/${projectId}/requirements`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    }
+  );
+
+  if (!response.ok) {
+    throw await readError(
+      response,
+      "Unable to create the requirement."
+    );
+  }
+
+  return (
+    await response.json()
+  ) as ProjectRequirement;
 }
 
 export async function updateRequirement(

@@ -67,6 +67,10 @@ import {
   ProjectActivityPanel,
 } from "../components/ProjectActivityPanel";
 
+import {
+  CreateRequirementButton,
+} from "../components/CreateRequirementButton";
+
 type ProjectWorkspacePageProps = {
   token: string;
   project: AcademicProject;
@@ -809,6 +813,21 @@ setActiveTab("tasks");
           !error &&
           activeTab === "requirements" && (
             <section className="requirements-list">
+                <div className="requirements-toolbar">
+  <CreateRequirementButton
+    token={token}
+    projectId={project.id}
+    onCreated={(createdRequirement) => {
+      setRequirements(
+        (currentRequirements) => [
+          createdRequirement,
+          ...currentRequirements,
+        ]
+      );
+    }}
+    onSessionExpired={onSessionExpired}
+  />
+</div>
               {taskCreationError && (
                 <div className="document-analysis-error">
                   {taskCreationError}
