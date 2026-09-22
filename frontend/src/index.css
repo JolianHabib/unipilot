@@ -4088,3 +4088,64 @@ textarea {
     width: 100%;
   }
 }
+.project-status-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 22px;
+  overflow-x: auto;
+  padding-bottom: 3px;
+}
+
+.project-status-filter button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 0 13px;
+  border: 1px solid #e1e4ed;
+  border-radius: 10px;
+  color: #697286;
+  background: #ffffff;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.project-status-filter button:hover {
+  border-color: #cfd0ff;
+  color: #5558df;
+  background: #f8f8ff;
+}
+
+.project-status-filter button.active {
+  border-color: #6262e8;
+  color: #ffffff;
+  background: #5b5ce2;
+}
+
+.project-status-filter button span {
+  min-width: 21px;
+  padding: 2px 6px;
+  border-radius: 20px;
+  color: inherit;
+  background: rgba(128, 128, 160, 0.12);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.project-status-filter button.active span {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.status-draft {
+  color: #697286;
+  background: #f0f2f6;
+}
+
+.status-archived {
+  color: #8a5b24;
+  background: #fff4df;
+}

@@ -3,6 +3,7 @@ namespace UniPilot.Domain.Activities;
 public enum ProjectActivityType
 {
     ProjectCreated,
+    ProjectStatusChanged,
     DocumentUploaded,
     DocumentProcessed,
     DocumentProcessingFailed,

@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using UniPilot.Application.Activities;
 using UniPilot.Application.Documents;
 using UniPilot.Application.Projects;
+using UniPilot.Domain.Activities;
 using UniPilot.Domain.Entities;
 using UniPilot.Infrastructure.Persistence;
 
@@ -10,6 +12,7 @@ namespace UniPilot.Infrastructure.Projects;
 public sealed class AcademicProjectService(
     AppDbContext dbContext,
     IFileStorage fileStorage,
+    IProjectActivityService activityService,
     ILogger<AcademicProjectService> logger)
     : IAcademicProjectService
 {
@@ -17,12 +20,11 @@ public sealed class AcademicProjectService(
         CreateAcademicProjectCommand command,
         CancellationToken cancellationToken = default)
     {
-        var ownsCourse =
-            await dbContext.Courses.AnyAsync(
-                course =>
-                    course.Id == command.CourseId &&
-                    course.OwnerId == command.OwnerId,
-                cancellationToken);
+        var ownsCourse = await dbContext.Courses.AnyAsync(
+            course =>
+                course.Id == command.CourseId &&
+                course.OwnerId == command.OwnerId,
+            cancellationToken);
 
         if (!ownsCourse)
         {
@@ -33,40 +35,38 @@ public sealed class AcademicProjectService(
         {
             CourseId = command.CourseId,
             Title = command.Title.Trim(),
-            Description =
-                string.IsNullOrWhiteSpace(
-                    command.Description)
-                    ? null
-                    : command.Description.Trim(),
-            DueDateUtc =
-                command.DueDateUtc
-                    ?.ToUniversalTime(),
-            Status =
-                AcademicProjectStatus.Draft
+            Description = string.IsNullOrWhiteSpace(command.Description)
+                ? null
+                : command.Description.Trim(),
+            DueDateUtc = command.DueDateUtc?.ToUniversalTime(),
+            Status = AcademicProjectStatus.Draft
         };
 
-        dbContext.AcademicProjects.Add(
-            project);
+        dbContext.AcademicProjects.Add(project);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
-        await dbContext.SaveChangesAsync(
+        await activityService.RecordAsync(
+            command.OwnerId,
+            project.Id,
+            ProjectActivityType.ProjectCreated,
+            "Project created",
+            $"{project.Title} was created with Draft status.",
             cancellationToken);
 
         return Map(project);
     }
 
-    public async Task<
-        IReadOnlyList<AcademicProjectResult>?>
+    public async Task<IReadOnlyList<AcademicProjectResult>?>
         GetByCourseAsync(
             Guid ownerId,
             Guid courseId,
             CancellationToken cancellationToken = default)
     {
-        var ownsCourse =
-            await dbContext.Courses.AnyAsync(
-                course =>
-                    course.Id == courseId &&
-                    course.OwnerId == ownerId,
-                cancellationToken);
+        var ownsCourse = await dbContext.Courses.AnyAsync(
+            course =>
+                course.Id == courseId &&
+                course.OwnerId == ownerId,
+            cancellationToken);
 
         if (!ownsCourse)
         {
@@ -75,35 +75,9 @@ public sealed class AcademicProjectService(
 
         return await dbContext.AcademicProjects
             .AsNoTracking()
-            .Where(project =>
-                project.CourseId == courseId)
-            .OrderByDescending(project =>
-                project.CreatedAtUtc)
-            .Select(project =>
-                new AcademicProjectResult(
-                    project.Id,
-                    project.CourseId,
-                    project.Title,
-                    project.Description,
-                    project.DueDateUtc,
-                    project.Status.ToString(),
-                    project.CreatedAtUtc))
-            .ToListAsync(cancellationToken);
-    }
-public async Task<
-    IReadOnlyList<AcademicProjectResult>>
-    GetByOwnerAsync(
-        Guid ownerId,
-        CancellationToken cancellationToken = default)
-{
-    return await dbContext.AcademicProjects
-        .AsNoTracking()
-        .Where(project =>
-            project.Course.OwnerId == ownerId)
-        .OrderByDescending(project =>
-            project.CreatedAtUtc)
-        .Select(project =>
-            new AcademicProjectResult(
+            .Where(project => project.CourseId == courseId)
+            .OrderByDescending(project => project.CreatedAtUtc)
+            .Select(project => new AcademicProjectResult(
                 project.Id,
                 project.CourseId,
                 project.Title,
@@ -111,47 +85,68 @@ public async Task<
                 project.DueDateUtc,
                 project.Status.ToString(),
                 project.CreatedAtUtc))
-        .ToListAsync(cancellationToken);
-}
-    public async Task<AcademicProjectResult?>
-        UpdateAsync(
-            UpdateAcademicProjectCommand command,
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AcademicProjectResult>>
+        GetByOwnerAsync(
+            Guid ownerId,
             CancellationToken cancellationToken = default)
     {
-        var project =
-    await dbContext.AcademicProjects
-        .SingleOrDefaultAsync(
-            existingProject =>
-                existingProject.Id ==
-                    command.AcademicProjectId &&
-                existingProject.CourseId ==
-                    command.CourseId &&
-                existingProject.Course.OwnerId ==
-                    command.OwnerId,
-            cancellationToken);
+        return await dbContext.AcademicProjects
+            .AsNoTracking()
+            .Where(project => project.Course.OwnerId == ownerId)
+            .OrderByDescending(project => project.CreatedAtUtc)
+            .Select(project => new AcademicProjectResult(
+                project.Id,
+                project.CourseId,
+                project.Title,
+                project.Description,
+                project.DueDateUtc,
+                project.Status.ToString(),
+                project.CreatedAtUtc))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<AcademicProjectResult?> UpdateAsync(
+        UpdateAcademicProjectCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var project = await dbContext.AcademicProjects
+            .SingleOrDefaultAsync(
+                existingProject =>
+                    existingProject.Id == command.AcademicProjectId &&
+                    existingProject.CourseId == command.CourseId &&
+                    existingProject.Course.OwnerId == command.OwnerId,
+                cancellationToken);
 
         if (project is null)
         {
             return null;
         }
 
-        project.Title =
-            command.Title.Trim();
+        var previousStatus = project.Status;
 
-        project.Description =
-            string.IsNullOrWhiteSpace(
-                command.Description)
-                ? null
-                : command.Description.Trim();
-
-        project.DueDateUtc =
-            command.DueDateUtc
-                ?.ToUniversalTime();
-
+        project.Title = command.Title.Trim();
+        project.Description = string.IsNullOrWhiteSpace(command.Description)
+            ? null
+            : command.Description.Trim();
+        project.DueDateUtc = command.DueDateUtc?.ToUniversalTime();
         project.Status = command.Status;
 
-        await dbContext.SaveChangesAsync(
-            cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (previousStatus != project.Status)
+        {
+            await activityService.RecordAsync(
+                command.OwnerId,
+                project.Id,
+                ProjectActivityType.ProjectStatusChanged,
+                "Project status changed",
+                $"{project.Title} moved from {previousStatus} " +
+                $"to {project.Status}.",
+                cancellationToken);
+        }
 
         return Map(project);
     }
@@ -161,37 +156,26 @@ public async Task<
         Guid academicProjectId,
         CancellationToken cancellationToken = default)
     {
-        var project =
-            await dbContext.AcademicProjects
-                .Include(existingProject =>
-                    existingProject.Documents)
-                .SingleOrDefaultAsync(
-                    existingProject =>
-                        existingProject.Id ==
-                            academicProjectId &&
-                        existingProject.Course.OwnerId ==
-                            ownerId,
-                    cancellationToken);
+        var project = await dbContext.AcademicProjects
+            .Include(existingProject => existingProject.Documents)
+            .SingleOrDefaultAsync(
+                existingProject =>
+                    existingProject.Id == academicProjectId &&
+                    existingProject.Course.OwnerId == ownerId,
+                cancellationToken);
 
         if (project is null)
         {
             return false;
         }
 
-        var storageKeys =
-            project.Documents
-                .Select(document =>
-                    document.StorageKey)
-                .Where(storageKey =>
-                    !string.IsNullOrWhiteSpace(
-                        storageKey))
-                .ToList();
+        var storageKeys = project.Documents
+            .Select(document => document.StorageKey)
+            .Where(storageKey => !string.IsNullOrWhiteSpace(storageKey))
+            .ToList();
 
-        dbContext.AcademicProjects.Remove(
-            project);
-
-        await dbContext.SaveChangesAsync(
-            cancellationToken);
+        dbContext.AcademicProjects.Remove(project);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         foreach (var storageKey in storageKeys)
         {

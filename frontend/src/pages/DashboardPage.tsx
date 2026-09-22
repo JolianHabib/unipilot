@@ -39,6 +39,11 @@ import {
   getWorkspaceRequirements,
 } from "../api/workspace";
 
+import {
+  ProjectStatusFilter,
+  type ProjectStatusFilterValue,
+} from "../components/ProjectStatusFilter";
+
 import type {
   AcademicProject,
   Course,
@@ -95,6 +100,11 @@ export function DashboardPage({
 
   const [search, setSearch] =
     useState("");
+
+  const [
+    projectStatusFilter,
+    setProjectStatusFilter,
+  ] = useState<ProjectStatusFilterValue>("All");
 
   const [projects, setProjects] =
     useState<AcademicProject[]>([]);
@@ -230,6 +240,14 @@ export function DashboardPage({
       );
     }
   );
+  const statusProjects =
+    projectStatusFilter === "All"
+      ? projects
+      : projects.filter(
+          (project) =>
+            project.status ===
+            projectStatusFilter
+        );
 
   const filteredRequirements =
     requirements.filter((requirement) => {
@@ -543,17 +561,25 @@ export function DashboardPage({
                   text="Open any project across your courses."
                 />
 
+                <ProjectStatusFilter
+                  projects={projects}
+                  value={projectStatusFilter}
+                  onChange={
+                    setProjectStatusFilter
+                  }
+                />
+
                 <WorkspaceState
                   loading={isLoading}
                   error={loadError}
-                  empty={!projects.length}
+                  empty={!statusProjects.length}
                   emptyText="No projects found."
                 />
 
                 {!isLoading &&
                   !loadError && (
                     <div className="projects-grid">
-                      {projects.map(
+                      {statusProjects.map(
                         (project) => (
                           <button
                             className="project-card"
