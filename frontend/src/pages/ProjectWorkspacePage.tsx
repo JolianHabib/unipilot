@@ -51,6 +51,10 @@ import {
   RetryDocumentButton,
 } from "../components/RetryDocumentButton";
 
+import {
+  RequirementSourceButton,
+} from "../components/RequirementSourceButton";
+
 
 type ProjectWorkspacePageProps = {
   token: string;
@@ -831,12 +835,25 @@ export function ProjectWorkspacePage({
                         </p>
 
                         <small>
-                          {requirement.type}
-                          {" · Page "}
-                          {
-                            requirement.sourcePageNumber
-                          }
-                        </small>
+  {requirement.type}
+</small>
+
+{requirement.projectDocumentId &&
+  requirement.sourcePageNumber && (
+    <RequirementSourceButton
+      token={token}
+      projectId={project.id}
+      documentId={
+        requirement.projectDocumentId
+      }
+      pageNumber={
+        requirement.sourcePageNumber
+      }
+      onSessionExpired={
+        onSessionExpired
+      }
+    />
+  )}
 
                         <button
                           className="requirement-task-button"

@@ -3735,3 +3735,45 @@ textarea {
   flex-shrink: 0;
   color: #8d94a8;
 }
+.requirement-source-control {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.requirement-source-button {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid #d9dcf3;
+  border-radius: 10px;
+  color: #5558df;
+  background: #f8f8ff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.requirement-source-button:hover:not(:disabled) {
+  border-color: #6262e8;
+  background: #eeeeff;
+}
+
+.requirement-source-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.requirement-source-error {
+  max-width: 280px;
+  color: #c33d3d;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
