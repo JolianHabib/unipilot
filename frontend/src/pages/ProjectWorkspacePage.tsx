@@ -11,8 +11,10 @@ import {
   FileText,
   FolderKanban,
   ListPlus,
+  Search,
   Sparkles,
   Upload,
+  X,
 } from "lucide-react";
 
 import {
@@ -85,6 +87,15 @@ type ProjectTab =
   | "tasks"
   | "activity";
 
+type RequirementCompletionFilter =
+  | "All"
+  | "Open"
+  | "Completed";
+
+type RequirementSort =
+  | "Newest"
+  | "Priority";
+
 export function ProjectWorkspacePage({
   token,
   project,
@@ -124,6 +135,21 @@ export function ProjectWorkspacePage({
 
   const [error, setError] =
     useState<string | null>(null);
+
+  const [requirementQuery, setRequirementQuery] =
+    useState("");
+
+  const [requirementType, setRequirementType] =
+    useState("All");
+
+  const [requirementPriority, setRequirementPriority] =
+    useState("All");
+
+  const [requirementCompletion, setRequirementCompletion] =
+    useState<RequirementCompletionFilter>("All");
+
+  const [requirementSort, setRequirementSort] =
+    useState<RequirementSort>("Newest");
 
   useEffect(() => {
     let isCancelled = false;
@@ -198,6 +224,89 @@ export function ProjectWorkspacePage({
             requirements.length) *
             100
         );
+
+  const visibleRequirements = useMemo(() => {
+    const query = requirementQuery
+      .trim()
+      .toLowerCase();
+
+    const priorityWeight: Record<string, number> = {
+      Critical: 4,
+      High: 3,
+      Medium: 2,
+      Low: 1,
+    };
+
+    const filtered = requirements.filter(
+      (requirement) => {
+        const matchesQuery =
+          !query ||
+          requirement.title
+            .toLowerCase()
+            .includes(query) ||
+          requirement.description
+            .toLowerCase()
+            .includes(query);
+
+        const matchesType =
+          requirementType === "All" ||
+          requirement.type === requirementType;
+
+        const matchesPriority =
+          requirementPriority === "All" ||
+          requirement.priority === requirementPriority;
+
+        const matchesCompletion =
+          requirementCompletion === "All" ||
+          (requirementCompletion === "Completed"
+            ? requirement.isCompleted
+            : !requirement.isCompleted);
+
+        return (
+          matchesQuery &&
+          matchesType &&
+          matchesPriority &&
+          matchesCompletion
+        );
+      }
+    );
+
+    return [...filtered].sort((left, right) => {
+      if (requirementSort === "Priority") {
+        return (
+          (priorityWeight[right.priority] ?? 0) -
+          (priorityWeight[left.priority] ?? 0)
+        );
+      }
+
+      return (
+        new Date(right.createdAtUtc).getTime() -
+        new Date(left.createdAtUtc).getTime()
+      );
+    });
+  }, [
+    requirements,
+    requirementQuery,
+    requirementType,
+    requirementPriority,
+    requirementCompletion,
+    requirementSort,
+  ]);
+
+  const hasRequirementFilters =
+    requirementQuery.trim().length > 0 ||
+    requirementType !== "All" ||
+    requirementPriority !== "All" ||
+    requirementCompletion !== "All" ||
+    requirementSort !== "Newest";
+
+  function clearRequirementFilters() {
+    setRequirementQuery("");
+    setRequirementType("All");
+    setRequirementPriority("All");
+    setRequirementCompletion("All");
+    setRequirementSort("Newest");
+  }
 
   async function handleUploadDocument(
     file: File
@@ -813,21 +922,121 @@ setActiveTab("tasks");
           !error &&
           activeTab === "requirements" && (
             <section className="requirements-list">
-                <div className="requirements-toolbar">
-  <CreateRequirementButton
-    token={token}
-    projectId={project.id}
-    onCreated={(createdRequirement) => {
-      setRequirements(
-        (currentRequirements) => [
-          createdRequirement,
-          ...currentRequirements,
-        ]
-      );
-    }}
-    onSessionExpired={onSessionExpired}
-  />
-</div>
+              <div className="requirements-toolbar">
+                <div>
+                  <strong>
+                    {visibleRequirements.length}
+                    {" of "}
+                    {requirements.length}
+                  </strong>
+                  <span> requirements shown</span>
+                </div>
+
+                <CreateRequirementButton
+                  token={token}
+                  projectId={project.id}
+                  onCreated={(createdRequirement) => {
+                    setRequirements(
+                      (currentRequirements) => [
+                        createdRequirement,
+                        ...currentRequirements,
+                      ]
+                    );
+                  }}
+                  onSessionExpired={onSessionExpired}
+                />
+              </div>
+
+              {requirements.length > 0 && (
+                <div className="requirement-filter-panel">
+                  <label className="requirement-search-field">
+                    <Search size={17} />
+                    <input
+                      value={requirementQuery}
+                      onChange={(event) =>
+                        setRequirementQuery(
+                          event.target.value
+                        )
+                      }
+                      placeholder="Search requirements..."
+                      aria-label="Search requirements"
+                    />
+                  </label>
+
+                  <select
+                    value={requirementType}
+                    onChange={(event) =>
+                      setRequirementType(event.target.value)
+                    }
+                    aria-label="Filter by requirement type"
+                  >
+                    <option value="All">All types</option>
+                    <option value="Functional">Functional</option>
+                    <option value="NonFunctional">
+                      Non-functional
+                    </option>
+                    <option value="Constraint">Constraint</option>
+                  </select>
+
+                  <select
+                    value={requirementPriority}
+                    onChange={(event) =>
+                      setRequirementPriority(
+                        event.target.value
+                      )
+                    }
+                    aria-label="Filter by priority"
+                  >
+                    <option value="All">All priorities</option>
+                    <option value="Critical">Critical</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+
+                  <select
+                    value={requirementCompletion}
+                    onChange={(event) =>
+                      setRequirementCompletion(
+                        event.target
+                          .value as RequirementCompletionFilter
+                      )
+                    }
+                    aria-label="Filter by completion"
+                  >
+                    <option value="All">All progress</option>
+                    <option value="Open">Open</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+
+                  <select
+                    value={requirementSort}
+                    onChange={(event) =>
+                      setRequirementSort(
+                        event.target.value as RequirementSort
+                      )
+                    }
+                    aria-label="Sort requirements"
+                  >
+                    <option value="Newest">Newest first</option>
+                    <option value="Priority">
+                      Highest priority
+                    </option>
+                  </select>
+
+                  {hasRequirementFilters && (
+                    <button
+                      className="clear-requirement-filters"
+                      type="button"
+                      onClick={clearRequirementFilters}
+                    >
+                      <X size={15} />
+                      Clear
+                    </button>
+                  )}
+                </div>
+              )}
+
               {taskCreationError && (
                 <div className="document-analysis-error">
                   {taskCreationError}
@@ -858,8 +1067,28 @@ setActiveTab("tasks");
                     View documents
                   </button>
                 </div>
+              ) : visibleRequirements.length === 0 ? (
+                <div className="empty-projects compact">
+                  <div className="empty-projects-icon">
+                    <Search size={25} />
+                  </div>
+
+                  <h3>No matching requirements</h3>
+                  <p>
+                    Try changing or clearing the filters.
+                  </p>
+
+                  <button
+                    className="analyze-document-button"
+                    type="button"
+                    onClick={clearRequirementFilters}
+                  >
+                    <X size={16} />
+                    Clear filters
+                  </button>
+                </div>
               ) : (
-                requirements.map(
+                visibleRequirements.map(
                   (requirement) => (
                     <article
                       className={`requirement-row ${

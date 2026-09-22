@@ -4149,3 +4149,129 @@ textarea {
   color: #8a5b24;
   background: #fff4df;
 }
+.requirements-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.requirements-toolbar > div:first-child {
+  color: #858da1;
+  font-size: 0.88rem;
+}
+
+.requirements-toolbar strong {
+  color: #31394f;
+}
+
+.requirement-filter-panel {
+  display: grid;
+  grid-template-columns:
+    minmax(210px, 1.7fr)
+    repeat(4, minmax(135px, 1fr))
+    auto;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 14px;
+  border: 1px solid #e4e7ef;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.requirement-search-field {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid #dfe3ed;
+  border-radius: 10px;
+  color: #8790a5;
+  background: #ffffff;
+}
+
+.requirement-search-field:focus-within {
+  border-color: #6262e8;
+  box-shadow: 0 0 0 3px rgba(98, 98, 232, 0.1);
+}
+
+.requirement-search-field input {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+}
+
+.requirement-filter-panel select {
+  min-height: 42px;
+  width: 100%;
+  padding: 0 11px;
+  border: 1px solid #dfe3ed;
+  border-radius: 10px;
+  color: #394157;
+  background: #ffffff;
+  font: inherit;
+  font-size: 0.84rem;
+  outline: none;
+}
+
+.requirement-filter-panel select:focus {
+  border-color: #6262e8;
+  box-shadow: 0 0 0 3px rgba(98, 98, 232, 0.1);
+}
+
+.clear-requirement-filters {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid #e1e4ed;
+  border-radius: 10px;
+  color: #626a7d;
+  background: #f8f9fc;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.clear-requirement-filters:hover {
+  color: #5558df;
+  border-color: #cfd0ff;
+  background: #f2f2ff;
+}
+
+.empty-projects.compact {
+  padding-block: 38px;
+}
+
+@media (max-width: 1050px) {
+  .requirement-filter-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .requirement-search-field {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .requirements-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .requirement-filter-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .requirement-search-field {
+    grid-column: auto;
+  }
+}
