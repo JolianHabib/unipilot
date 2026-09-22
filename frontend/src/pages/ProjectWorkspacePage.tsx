@@ -60,6 +60,10 @@ import {
 } from "../components/RequirementCompletionButton";
 
 import {
+  RequirementActions,
+} from "../components/RequirementActions";
+
+import {
   ProjectActivityPanel,
 } from "../components/ProjectActivityPanel";
 
@@ -866,6 +870,36 @@ setActiveTab("tasks");
                         }}
                       />
 
+                      <RequirementActions
+                        token={token}
+                        requirement={requirement}
+                        onUpdated={(updated) => {
+                          setRequirements(
+                            (currentRequirements) =>
+                              currentRequirements.map(
+                                (currentRequirement) =>
+                                  currentRequirement.id ===
+                                  updated.id
+                                    ? updated
+                                    : currentRequirement
+                              )
+                          );
+                        }}
+                        onDeleted={(requirementId) => {
+                          setRequirements(
+                            (currentRequirements) =>
+                              currentRequirements.filter(
+                                (currentRequirement) =>
+                                  currentRequirement.id !==
+                                  requirementId
+                              )
+                          );
+                        }}
+                        onSessionExpired={
+                          onSessionExpired
+                        }
+                      />
+
                       <div className="requirement-details">
                         <div className="requirement-title">
                           <h3>
@@ -957,17 +991,19 @@ setActiveTab("tasks");
               }}
             />
           )}
-          {!isLoading &&
-  !error &&
-  activeTab === "activity" && (
-    <ProjectActivityPanel
-      token={token}
-      projectId={project.id}
-      onSessionExpired={
-        onSessionExpired
-      }
-    />
-  )}
+
+        {!isLoading &&
+          !error &&
+          activeTab === "activity" && (
+            <ProjectActivityPanel
+              token={token}
+              projectId={project.id}
+              onSessionExpired={
+                onSessionExpired
+              }
+            />
+          )}
+
       </div>
 
       <UploadDocumentModal
