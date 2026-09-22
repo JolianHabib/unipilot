@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
-  Circle,
   FileText,
   FolderKanban,
   ListPlus,
@@ -29,6 +28,7 @@ import {
 import {
   createProjectTask,
   getProjectTasks,
+  moveProjectTask,
   type ProjectTaskPriority,
 } from "../api/tasks";
 
@@ -54,6 +54,10 @@ import {
 import {
   RequirementSourceButton,
 } from "../components/RequirementSourceButton";
+
+import {
+  RequirementCompletionButton,
+} from "../components/RequirementCompletionButton";
 
 
 type ProjectWorkspacePageProps = {
@@ -305,15 +309,37 @@ export function ProjectWorkspacePage({
           ? requirement.priority
           : "Medium") as ProjectTaskPriority;
 
-      await createProjectTask(token, project.id, {
-        projectRequirementId: requirement.id,
-        title: requirement.title,
-        description: requirement.description,
-        priority,
-        dueDateUtc: null,
-      });
+      const createdTask =
+  await createProjectTask(
+    token,
+    project.id,
+    {
+      projectRequirementId:
+        requirement.id,
+      title: requirement.title,
+      description:
+        requirement.description,
+      priority,
+      dueDateUtc: null,
+    }
+  );
 
-      setActiveTab("tasks");
+if (requirement.isCompleted) {
+  const completedPosition =
+    existingTasks.filter(
+      (task) => task.status === "Done"
+    ).length;
+
+  await moveProjectTask(
+    token,
+    project.id,
+    createdTask.id,
+    "Done",
+    completedPosition
+  );
+}
+
+setActiveTab("tasks");
     } catch (createError) {
       const message =
         createError instanceof Error
@@ -803,15 +829,25 @@ export function ProjectWorkspacePage({
                       }`}
                       key={requirement.id}
                     >
-                      <div className="requirement-check">
-                        {requirement.isCompleted ? (
-                          <CheckCircle2
-                            size={21}
-                          />
-                        ) : (
-                          <Circle size={21} />
-                        )}
-                      </div>
+                      <RequirementCompletionButton
+                        token={token}
+                        requirement={requirement}
+                        onSessionExpired={
+                          onSessionExpired
+                        }
+                        onUpdated={(updated) => {
+                          setRequirements(
+                            (currentRequirements) =>
+                              currentRequirements.map(
+                                (currentRequirement) =>
+                                  currentRequirement.id ===
+                                  updated.id
+                                    ? updated
+                                    : currentRequirement
+                              )
+                          );
+                        }}
+                      />
 
                       <div className="requirement-details">
                         <div className="requirement-title">

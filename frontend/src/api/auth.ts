@@ -669,3 +669,53 @@ export async function extractDocumentRequirements(
       "Unable to analyze this document."
   );
 }
+export async function setRequirementCompletion(
+  token: string,
+  requirementId: string,
+  isCompleted: boolean
+): Promise<ProjectRequirement> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/requirements/${requirementId}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        isCompleted,
+      }),
+    }
+  );
+
+  if (response.status === 401) {
+    throw new Error("SESSION_EXPIRED");
+  }
+
+  if (response.status === 404) {
+    throw new Error(
+      "Requirement not found."
+    );
+  }
+
+  if (!response.ok) {
+    let message =
+      "Unable to update the requirement.";
+
+    try {
+      const body = (await response.json()) as {
+        message?: string;
+      };
+
+      if (body.message) {
+        message = body.message;
+      }
+    } catch {
+      // Keep the default message.
+    }
+
+    throw new Error(message);
+  }
+
+  return (await response.json()) as ProjectRequirement;
+}

@@ -3777,3 +3777,44 @@ textarea {
   font-size: 0.76rem;
   line-height: 1.4;
 }
+
+.requirement-completion-control {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.requirement-check-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.requirement-check-button:hover:not(:disabled) {
+  color: #5759e1;
+  transform: scale(1.08);
+}
+
+.requirement-check-button.completed {
+  color: #11967d;
+}
+
+.requirement-check-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.requirement-completion-error {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 4;
+  width: 220px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  color: #b23c34;
+  background: #fff0ed;
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
