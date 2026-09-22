@@ -523,13 +523,13 @@ var resultStatus =
             ? $"“{document.OriginalFileName}” is ready. {document.PageCount} page(s) were extracted."
             : $"UniPilot could not process “{document.OriginalFileName}”. You can retry from the project workspace.";
 
-    await notificationService.CreateAsync(
-        ownerId,
-        type,
-        title,
-        message,
-        null,
-        cancellationToken);
+   await notificationService.CreateAsync(
+    ownerId,
+    type,
+    title,
+    message,
+    $"project:{document.AcademicProjectId}",
+    cancellationToken);
 }
 
     private static string Truncate(

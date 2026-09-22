@@ -3583,3 +3583,40 @@ textarea {
   font-weight: 800;
   line-height: 1;
 }
+.notification-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: transparent;
+}
+
+.notification-menu.open {
+  position: relative;
+  z-index: 10000 !important;
+}
+
+.notification-menu.open .notification-button {
+  position: relative;
+  z-index: 10001 !important;
+  background: #ffffff;
+}
+
+.notification-menu.open .notification-dropdown {
+  z-index: 10002 !important;
+  max-height: min(560px, calc(100vh - 100px));
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 28px 70px rgba(25, 31, 65, 0.24);
+}
+
+.notification-menu.open .notification-list {
+  min-height: 0;
+  max-height: min(420px, calc(100vh - 230px));
+  overflow-y: auto;
+}
+.dashboard-header:has(.notification-menu.open),
+.dashboard-topbar:has(.notification-menu.open) {
+  position: relative;
+  z-index: 9999;
+}

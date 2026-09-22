@@ -200,15 +200,17 @@ public sealed class NotificationService(
             }
 
             dbContext.Notifications.Add(
-                new Notification
-                {
-                    UserId = userId,
-                    Type = reminder.Type,
-                    Title = reminder.Title,
-                    Message = reminder.Message,
-                    DeduplicationKey =
-                        reminder.Key
-                });
+    new Notification
+    {
+        UserId = userId,
+        Type = reminder.Type,
+        Title = reminder.Title,
+        Message = reminder.Message,
+        ActionUrl =
+            $"project:{project.Id}",
+        DeduplicationKey =
+            reminder.Key
+    });
         }
 
         await dbContext.SaveChangesAsync(

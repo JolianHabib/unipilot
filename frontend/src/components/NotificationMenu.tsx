@@ -24,11 +24,15 @@ import {
 type NotificationMenuProps = {
   token: string;
   onSessionExpired: () => void;
+  onOpenProject: (
+    projectId: string
+  ) => void;
 };
 
 export function NotificationMenu({
   token,
   onSessionExpired,
+  onOpenProject,
 }: NotificationMenuProps) {
   const [notifications, setNotifications] =
     useState<AppNotification[]>([]);
@@ -88,16 +92,20 @@ export function NotificationMenu({
 
     void loadNotifications();
 
-    const intervalId = window.setInterval(
-      () => {
-        void loadNotifications();
-      },
-      60000
-    );
+    const intervalId =
+      window.setInterval(
+        () => {
+          void loadNotifications();
+        },
+        60000
+      );
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
+
+      window.clearInterval(
+        intervalId
+      );
     };
   }, [token, onSessionExpired]);
 
@@ -156,6 +164,33 @@ export function NotificationMenu({
     }
   }
 
+  async function handleNotificationClick(
+    notification: AppNotification
+  ) {
+    await handleMarkAsRead(
+      notification
+    );
+
+    const projectPrefix =
+      "project:";
+
+    if (
+      notification.actionUrl?.startsWith(
+        projectPrefix
+      )
+    ) {
+      const projectId =
+        notification.actionUrl.slice(
+          projectPrefix.length
+        );
+
+      if (projectId) {
+        setIsOpen(false);
+        onOpenProject(projectId);
+      }
+    }
+  }
+
   async function handleMarkAllAsRead() {
     try {
       await markAllNotificationsAsRead(
@@ -163,17 +198,21 @@ export function NotificationMenu({
       );
 
       setNotifications((current) =>
-        current.map((notification) => ({
-          ...notification,
-          isRead: true,
-        }))
+        current.map(
+          (notification) => ({
+            ...notification,
+            isRead: true,
+          })
+        )
       );
     } catch (exception) {
       handleError(exception);
     }
   }
 
-  function handleError(exception: unknown) {
+  function handleError(
+    exception: unknown
+  ) {
     const message =
       exception instanceof Error
         ? exception.message
@@ -188,8 +227,19 @@ export function NotificationMenu({
   }
 
   return (
+  <>
+    {isOpen && (
+      <div
+        className="notification-overlay"
+        onClick={() => setIsOpen(false)}
+        aria-hidden="true"
+      />
+    )}
+
     <div
-      className="notification-menu"
+      className={`notification-menu ${
+        isOpen ? "open" : ""
+      }`}
       ref={menuRef}
     >
       <button
@@ -198,7 +248,9 @@ export function NotificationMenu({
         aria-label="Notifications"
         aria-expanded={isOpen}
         onClick={() =>
-          setIsOpen((current) => !current)
+          setIsOpen(
+            (current) => !current
+          )
         }
       >
         <Bell size={20} />
@@ -249,20 +301,27 @@ export function NotificationMenu({
                 size={22}
               />
 
-              <p>Loading notifications...</p>
+              <p>
+                Loading notifications...
+              </p>
             </div>
           ) : error ? (
             <div className="notification-state error">
               <CircleAlert size={23} />
               <p>{error}</p>
             </div>
-          ) : notifications.length === 0 ? (
+          ) : notifications.length ===
+            0 ? (
             <div className="notification-state">
               <Bell size={25} />
-              <strong>No notifications yet</strong>
+
+              <strong>
+                No notifications yet
+              </strong>
+
               <p>
-                Updates about your documents
-                will appear here.
+                Document and deadline
+                updates will appear here.
               </p>
             </div>
           ) : (
@@ -278,7 +337,7 @@ export function NotificationMenu({
                     type="button"
                     key={notification.id}
                     onClick={() =>
-                      void handleMarkAsRead(
+                      void handleNotificationClick(
                         notification
                       )
                     }
@@ -287,7 +346,9 @@ export function NotificationMenu({
                       className={`notification-type-icon ${notification.type.toLowerCase()}`}
                     >
                       <NotificationIcon
-                        type={notification.type}
+                        type={
+                          notification.type
+                        }
                       />
                     </span>
 
@@ -318,6 +379,7 @@ export function NotificationMenu({
         </section>
       )}
     </div>
+    </>
   );
 }
 
@@ -327,15 +389,21 @@ function NotificationIcon({
   type: AppNotification["type"];
 }) {
   if (type === "Success") {
-    return <CheckCircle2 size={18} />;
+    return (
+      <CheckCircle2 size={18} />
+    );
   }
 
   if (type === "Warning") {
-    return <TriangleAlert size={18} />;
+    return (
+      <TriangleAlert size={18} />
+    );
   }
 
   if (type === "Error") {
-    return <CircleAlert size={18} />;
+    return (
+      <CircleAlert size={18} />
+    );
   }
 
   return <Info size={18} />;
@@ -350,7 +418,8 @@ function formatNotificationTime(
     Math.max(
       0,
       Math.floor(
-        (Date.now() - date.getTime()) /
+        (Date.now() -
+          date.getTime()) /
           1000
       )
     );
@@ -368,15 +437,15 @@ function formatNotificationTime(
     return `${minutes}m ago`;
   }
 
-  const hours = Math.floor(
-    minutes / 60
-  );
+  const hours =
+    Math.floor(minutes / 60);
 
   if (hours < 24) {
     return `${hours}h ago`;
   }
 
-  const days = Math.floor(hours / 24);
+  const days =
+    Math.floor(hours / 24);
 
   if (days < 7) {
     return `${days}d ago`;

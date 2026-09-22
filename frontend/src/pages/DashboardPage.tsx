@@ -184,9 +184,20 @@ export function DashboardPage({
             <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${section}...`} />
           </div>
           <NotificationMenu
-            token={token}
-            onSessionExpired={onLogout}
-          />
+  token={token}
+  onSessionExpired={onLogout}
+  onOpenProject={(projectId) => {
+    const project =
+      projects.find(
+        (item) =>
+          item.id === projectId
+      );
+
+    if (project) {
+      onProjectSelect(project);
+    }
+  }}
+/>
         </header>
 
         <div className="dashboard-content">
