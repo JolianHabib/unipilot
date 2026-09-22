@@ -32,6 +32,11 @@ public sealed class ProjectRequirementService(
             return null;
         }
 
+        await RemoveDuplicateRequirementsAsync(
+            ownerId,
+            academicProjectId,
+            cancellationToken);
+
         return await dbContext.ProjectRequirements
             .AsNoTracking()
             .Where(requirement =>
@@ -440,5 +445,85 @@ public sealed class ProjectRequirementService(
                     (char[]?)null,
                     StringSplitOptions.RemoveEmptyEntries))
             .ToUpperInvariant();
+    }
+
+    private async Task RemoveDuplicateRequirementsAsync(
+        Guid ownerId,
+        Guid academicProjectId,
+        CancellationToken cancellationToken)
+    {
+        var requirements = await dbContext.ProjectRequirements
+            .Include(requirement => requirement.Tasks)
+            .Where(requirement =>
+                requirement.AcademicProjectId == academicProjectId)
+            .OrderBy(requirement => requirement.CreatedAtUtc)
+            .ThenBy(requirement => requirement.Id)
+            .ToListAsync(cancellationToken);
+
+        var duplicateGroups = requirements
+            .GroupBy(requirement => CreateComparisonKey(
+                requirement.Title,
+                requirement.Description))
+            .Where(group => group.Count() > 1)
+            .ToList();
+
+        if (duplicateGroups.Count == 0)
+        {
+            return;
+        }
+
+        var projectTasks = await dbContext.ProjectTasks
+            .Where(task =>
+                task.AcademicProjectId == academicProjectId)
+            .OrderBy(task => task.Position)
+            .ThenBy(task => task.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var removedCount = 0;
+        var now = DateTime.UtcNow;
+
+        foreach (var group in duplicateGroups)
+        {
+            var canonical = group.First();
+            var duplicates = group.Skip(1).ToList();
+            var isCompleted = group.Any(requirement =>
+                requirement.IsCompleted);
+
+            canonical.IsCompleted = isCompleted;
+
+            foreach (var duplicate in duplicates)
+            {
+                foreach (var task in duplicate.Tasks.ToList())
+                {
+                    task.ProjectRequirementId = canonical.Id;
+                    task.ProjectRequirement = canonical;
+                }
+
+                dbContext.ProjectRequirements.Remove(duplicate);
+                removedCount++;
+            }
+
+            if (isCompleted)
+            {
+                foreach (var task in projectTasks.Where(task =>
+                             task.ProjectRequirementId == canonical.Id))
+                {
+                    task.Status = ProjectTaskStatus.Done;
+                    task.Position = int.MaxValue;
+                    task.UpdatedAtUtc = now;
+                }
+            }
+        }
+
+        NormalizeTaskPositions(projectTasks);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        await activityService.RecordAsync(
+            ownerId,
+            academicProjectId,
+            ProjectActivityType.RequirementDuplicatesRemoved,
+            "Duplicate requirements removed",
+            $"{removedCount} duplicate requirement(s) were merged safely.",
+            cancellationToken);
     }
 }

@@ -14,6 +14,7 @@ export type ProjectActivityType =
   | "RequirementReopened"
   | "RequirementUpdated"
   | "RequirementDeleted"
+  | "RequirementDuplicatesRemoved"
   | "TaskCreated"
   | "TaskUpdated"
   | "TaskMoved"

@@ -13,6 +13,7 @@ public enum ProjectActivityType
     RequirementReopened,
     RequirementUpdated,
     RequirementDeleted,
+    RequirementDuplicatesRemoved,
     TaskCreated,
     TaskUpdated,
     TaskMoved,
