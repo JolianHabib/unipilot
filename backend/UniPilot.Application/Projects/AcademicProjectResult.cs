@@ -7,4 +7,5 @@ public sealed record AcademicProjectResult(
     string? Description,
     DateTime? DueDateUtc,
     string Status,
-    DateTime CreatedAtUtc);
+    DateTime CreatedAtUtc,
+    string AccessRole);

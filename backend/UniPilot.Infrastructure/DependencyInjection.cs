@@ -6,6 +6,8 @@ using UniPilot.Application.Auth;
 using UniPilot.Application.Courses;
 using UniPilot.Application.Documents;
 using UniPilot.Application.Notifications;
+using UniPilot.Application.ProjectAccess;
+using UniPilot.Application.ProjectMembers;
 using UniPilot.Application.Projects;
 using UniPilot.Application.Requirements;
 using UniPilot.Infrastructure.Activities;
@@ -14,6 +16,8 @@ using UniPilot.Infrastructure.Courses;
 using UniPilot.Infrastructure.Documents;
 using UniPilot.Infrastructure.Notifications;
 using UniPilot.Infrastructure.Persistence;
+using UniPilot.Infrastructure.ProjectAccess;
+using UniPilot.Infrastructure.ProjectMembers;
 using UniPilot.Infrastructure.Projects;
 using UniPilot.Infrastructure.Requirements;
 
@@ -50,6 +54,10 @@ public static class DependencyInjection
             NotificationService>();
         services.AddScoped<IProjectActivityService,
             ProjectActivityService>();
+        services.AddScoped<IProjectAccessService,
+            ProjectAccessService>();
+        services.AddScoped<IProjectMemberService,
+            ProjectMemberService>();
 
         return services;
     }

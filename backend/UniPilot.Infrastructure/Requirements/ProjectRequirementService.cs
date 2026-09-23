@@ -1,9 +1,11 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using UniPilot.Application.Activities;
+using UniPilot.Application.ProjectAccess;
 using UniPilot.Application.Requirements;
 using UniPilot.Domain.Activities;
 using UniPilot.Domain.Entities;
+using UniPilot.Domain.Projects;
 using UniPilot.Domain.Tasks;
 using UniPilot.Infrastructure.Persistence;
 
@@ -12,7 +14,8 @@ namespace UniPilot.Infrastructure.Requirements;
 public sealed class ProjectRequirementService(
     AppDbContext dbContext,
     IRequirementExtractor requirementExtractor,
-    IProjectActivityService activityService)
+    IProjectActivityService activityService,
+    IProjectAccessService accessService)
     : IProjectRequirementService
 {
     public async Task<IReadOnlyList<ProjectRequirementResult>?>
@@ -21,21 +24,23 @@ public sealed class ProjectRequirementService(
             Guid academicProjectId,
             CancellationToken cancellationToken = default)
     {
-        var ownsProject = await dbContext.AcademicProjects.AnyAsync(
-            project =>
-                project.Id == academicProjectId &&
-                project.Course.OwnerId == ownerId,
+        var accessLevel = await accessService.GetAccessLevelAsync(
+            ownerId,
+            academicProjectId,
             cancellationToken);
 
-        if (!ownsProject)
+        if (accessLevel == ProjectAccessLevel.None)
         {
             return null;
         }
 
-        await RemoveDuplicateRequirementsAsync(
-            ownerId,
-            academicProjectId,
-            cancellationToken);
+        if (accessLevel >= ProjectAccessLevel.Editor)
+        {
+            await RemoveDuplicateRequirementsAsync(
+                ownerId,
+                academicProjectId,
+                cancellationToken);
+        }
 
         return await dbContext.ProjectRequirements
             .AsNoTracking()
@@ -55,7 +60,9 @@ public sealed class ProjectRequirementService(
         return await dbContext.ProjectRequirements
             .AsNoTracking()
             .Where(requirement =>
-                requirement.AcademicProject.Course.OwnerId == ownerId)
+                requirement.AcademicProject.Course.OwnerId == ownerId ||
+                requirement.AcademicProject.Members.Any(member =>
+                    member.UserId == ownerId))
             .OrderByDescending(requirement => requirement.CreatedAtUtc)
             .Select(ResultProjection)
             .ToListAsync(cancellationToken);
@@ -67,13 +74,10 @@ public sealed class ProjectRequirementService(
         CreateProjectRequirementCommand command,
         CancellationToken cancellationToken = default)
     {
-        var ownsProject = await dbContext.AcademicProjects.AnyAsync(
-            project =>
-                project.Id == academicProjectId &&
-                project.Course.OwnerId == ownerId,
-            cancellationToken);
-
-        if (!ownsProject)
+        if (!await accessService.CanEditAsync(
+                ownerId,
+                academicProjectId,
+                cancellationToken))
         {
             return null;
         }
@@ -111,12 +115,27 @@ public sealed class ProjectRequirementService(
             Guid documentId,
             CancellationToken cancellationToken = default)
     {
+        var academicProjectId = await dbContext.ProjectDocuments
+            .Where(projectDocument =>
+                projectDocument.Id == documentId)
+            .Select(projectDocument =>
+                (Guid?)projectDocument.AcademicProjectId)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (academicProjectId is null ||
+            !await accessService.CanEditAsync(
+                ownerId,
+                academicProjectId.Value,
+                cancellationToken))
+        {
+            return null;
+        }
+
         var document = await dbContext.ProjectDocuments
             .Include(projectDocument => projectDocument.Pages)
             .SingleOrDefaultAsync(
                 projectDocument =>
-                    projectDocument.Id == documentId &&
-                    projectDocument.AcademicProject.Course.OwnerId == ownerId,
+                    projectDocument.Id == documentId,
                 cancellationToken);
 
         if (document is null)
@@ -239,11 +258,14 @@ public sealed class ProjectRequirementService(
         var requirement = await dbContext.ProjectRequirements
             .SingleOrDefaultAsync(
                 item =>
-                    item.Id == requirementId &&
-                    item.AcademicProject.Course.OwnerId == ownerId,
+                    item.Id == requirementId,
                 cancellationToken);
 
-        if (requirement is null)
+        if (requirement is null ||
+            !await accessService.CanEditAsync(
+                ownerId,
+                requirement.AcademicProjectId,
+                cancellationToken))
         {
             return null;
         }
@@ -307,11 +329,14 @@ public sealed class ProjectRequirementService(
         var requirement = await dbContext.ProjectRequirements
             .SingleOrDefaultAsync(
                 item =>
-                    item.Id == requirementId &&
-                    item.AcademicProject.Course.OwnerId == ownerId,
+                    item.Id == requirementId,
                 cancellationToken);
 
-        if (requirement is null)
+        if (requirement is null ||
+            !await accessService.CanEditAsync(
+                ownerId,
+                requirement.AcademicProjectId,
+                cancellationToken))
         {
             return false;
         }
@@ -344,11 +369,14 @@ public sealed class ProjectRequirementService(
         var requirement = await dbContext.ProjectRequirements
             .SingleOrDefaultAsync(
                 item =>
-                    item.Id == requirementId &&
-                    item.AcademicProject.Course.OwnerId == ownerId,
+                    item.Id == requirementId,
                 cancellationToken);
 
-        if (requirement is null)
+        if (requirement is null ||
+            !await accessService.CanEditAsync(
+                ownerId,
+                requirement.AcademicProjectId,
+                cancellationToken))
         {
             return null;
         }

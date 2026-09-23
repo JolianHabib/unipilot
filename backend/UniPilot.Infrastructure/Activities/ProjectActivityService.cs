@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using UniPilot.Application.Activities;
+using UniPilot.Application.ProjectAccess;
 using UniPilot.Domain.Activities;
 using UniPilot.Domain.Entities;
 using UniPilot.Infrastructure.Persistence;
@@ -7,7 +8,8 @@ using UniPilot.Infrastructure.Persistence;
 namespace UniPilot.Infrastructure.Activities;
 
 public sealed class ProjectActivityService(
-    AppDbContext dbContext) : IProjectActivityService
+    AppDbContext dbContext,
+    IProjectAccessService accessService) : IProjectActivityService
 {
     public async Task<IReadOnlyList<ProjectActivityResult>?>
         GetByProjectAsync(
@@ -15,13 +17,10 @@ public sealed class ProjectActivityService(
             Guid academicProjectId,
             CancellationToken cancellationToken = default)
     {
-        var ownsProject = await dbContext.AcademicProjects.AnyAsync(
-            project =>
-                project.Id == academicProjectId &&
-                project.Course.OwnerId == ownerId,
-            cancellationToken);
-
-        if (!ownsProject)
+        if (!await accessService.CanViewAsync(
+                ownerId,
+                academicProjectId,
+                cancellationToken))
         {
             return null;
         }

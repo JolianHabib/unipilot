@@ -17,8 +17,7 @@ public sealed class AcademicProject
 
     public Course Course { get; set; } = null!;
 
-    public DateTime CreatedAtUtc { get; set; } =
-        DateTime.UtcNow;
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public ICollection<ProjectDocument> Documents { get; set; } =
         new List<ProjectDocument>();
@@ -31,4 +30,7 @@ public sealed class AcademicProject
 
     public ICollection<ProjectActivity> Activities { get; set; } =
         new List<ProjectActivity>();
+
+    public ICollection<ProjectMember> Members { get; set; } =
+        new List<ProjectMember>();
 }

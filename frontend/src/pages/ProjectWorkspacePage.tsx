@@ -70,6 +70,10 @@ import {
 } from "../components/ProjectActivityPanel";
 
 import {
+  ProjectMembersPanel,
+} from "../components/ProjectMembersPanel";
+
+import {
   ExportProjectReportButton,
 } from "../components/ExportProjectReportButton";
 
@@ -89,6 +93,7 @@ type ProjectTab =
   | "documents"
   | "requirements"
   | "tasks"
+  | "members"
   | "activity";
 
 type RequirementCompletionFilter =
@@ -106,6 +111,12 @@ export function ProjectWorkspacePage({
   onBack,
   onSessionExpired,
 }: ProjectWorkspacePageProps) {
+  const isOwner =
+    project.accessRole === "Owner";
+
+  const canEdit =
+    isOwner || project.accessRole === "Editor";
+
   const [documents, setDocuments] =
     useState<ProjectDocument[]>([]);
 
@@ -569,16 +580,18 @@ setActiveTab("tasks");
             )}
           </div>
 
-          <button
-            className="upload-document-button"
-            type="button"
-            onClick={() =>
-              setIsUploadModalOpen(true)
-            }
-          >
-            <Upload size={18} />
-            Upload PDF
-          </button>
+          {canEdit && (
+            <button
+              className="upload-document-button"
+              type="button"
+              onClick={() =>
+                setIsUploadModalOpen(true)
+              }
+            >
+              <Upload size={18} />
+              Upload PDF
+            </button>
+          )}
         </section>
 
         <nav className="project-tabs">
@@ -639,6 +652,22 @@ setActiveTab("tasks");
           >
             Task board
           </button>
+          {isOwner && (
+            <button
+              className={
+                activeTab === "members"
+                  ? "active"
+                  : ""
+              }
+              type="button"
+              onClick={() =>
+                setActiveTab("members")
+              }
+            >
+              Members
+            </button>
+          )}
+
           <button
   className={
     activeTab === "activity"
@@ -768,16 +797,18 @@ setActiveTab("tasks");
                     and analyze requirements.
                   </p>
 
-                  <button
-                    className="upload-document-button"
-                    type="button"
-                    onClick={() =>
-                      setIsUploadModalOpen(true)
-                    }
-                  >
-                    <Upload size={18} />
-                    Upload PDF
-                  </button>
+                  {canEdit && (
+                    <button
+                      className="upload-document-button"
+                      type="button"
+                      onClick={() =>
+                        setIsUploadModalOpen(true)
+                      }
+                    >
+                      <Upload size={18} />
+                      Upload PDF
+                    </button>
+                  )}
                 </div>
               ) : (
                 documents.map((document) => {
@@ -856,7 +887,7 @@ setActiveTab("tasks");
 
                             View requirements
                           </button>
-                        ) : (
+                        ) : canEdit ? (
                           <button
                             className="analyze-document-button"
                             type="button"
@@ -876,10 +907,12 @@ setActiveTab("tasks");
                               ? "Analyzing..."
                               : "Analyze with AI"}
                           </button>
-                          
-                          
+                        ) : (
+                          <span className="document-status">
+                            Not analyzed
+                          </span>
                         )}
-                        {document.processingStatus
+                        {canEdit && document.processingStatus
   .toLowerCase() === "failed" && (
   <RetryDocumentButton
     token={token}
@@ -915,7 +948,8 @@ setActiveTab("tasks");
     onSessionExpired
   }
 />
-                        <DeleteDocumentButton
+                        {canEdit && (
+                          <DeleteDocumentButton
   token={token}
   projectId={project.id}
   document={document}
@@ -926,6 +960,7 @@ setActiveTab("tasks");
     onSessionExpired
   }
 />
+                        )}
                       </div>
                     </article>
                   );
@@ -948,19 +983,21 @@ setActiveTab("tasks");
                   <span> requirements shown</span>
                 </div>
 
-                <CreateRequirementButton
-                  token={token}
-                  projectId={project.id}
-                  onCreated={(createdRequirement) => {
-                    setRequirements(
-                      (currentRequirements) => [
-                        createdRequirement,
-                        ...currentRequirements,
-                      ]
-                    );
-                  }}
-                  onSessionExpired={onSessionExpired}
-                />
+                {canEdit && (
+                  <CreateRequirementButton
+                    token={token}
+                    projectId={project.id}
+                    onCreated={(createdRequirement) => {
+                      setRequirements(
+                        (currentRequirements) => [
+                          createdRequirement,
+                          ...currentRequirements,
+                        ]
+                      );
+                    }}
+                    onSessionExpired={onSessionExpired}
+                  />
+                )}
               </div>
 
               {requirements.length > 0 && (
@@ -1111,10 +1148,15 @@ setActiveTab("tasks");
                         requirement.isCompleted
                           ? "completed"
                           : ""
+                      } ${
+                        canEdit
+                          ? ""
+                          : "view-only"
                       }`}
                       key={requirement.id}
                     >
-                      <RequirementCompletionButton
+                      {canEdit && (
+                        <RequirementCompletionButton
                         token={token}
                         requirement={requirement}
                         onSessionExpired={
@@ -1132,9 +1174,11 @@ setActiveTab("tasks");
                               )
                           );
                         }}
-                      />
+                        />
+                      )}
 
-                      <RequirementActions
+                      {canEdit && (
+                        <RequirementActions
                         token={token}
                         requirement={requirement}
                         onUpdated={(updated) => {
@@ -1162,7 +1206,8 @@ setActiveTab("tasks");
                         onSessionExpired={
                           onSessionExpired
                         }
-                      />
+                        />
+                      )}
 
                       <div className="requirement-details">
                         <div className="requirement-title">
@@ -1206,7 +1251,8 @@ setActiveTab("tasks");
     />
   )}
 
-                        <button
+                        {canEdit && (
+                          <button
                           className="requirement-task-button"
                           type="button"
                           disabled={
@@ -1224,7 +1270,8 @@ setActiveTab("tasks");
                           requirement.id
                             ? "Creating..."
                             : "Create task"}
-                        </button>
+                          </button>
+                        )}
                       </div>
                     </article>
                   )
@@ -1239,6 +1286,7 @@ setActiveTab("tasks");
             <TaskBoard
               token={token}
               projectId={project.id}
+              readOnly={!canEdit}
               onSessionExpired={
                 onSessionExpired
               }
@@ -1258,6 +1306,19 @@ setActiveTab("tasks");
 
         {!isLoading &&
           !error &&
+          activeTab === "members" &&
+          isOwner && (
+            <ProjectMembersPanel
+              token={token}
+              projectId={project.id}
+              onSessionExpired={
+                onSessionExpired
+              }
+            />
+          )}
+
+        {!isLoading &&
+          !error &&
           activeTab === "activity" && (
             <ProjectActivityPanel
               token={token}
@@ -1270,13 +1331,15 @@ setActiveTab("tasks");
 
       </div>
 
-      <UploadDocumentModal
-        isOpen={isUploadModalOpen}
-        onClose={() =>
-          setIsUploadModalOpen(false)
-        }
-        onUpload={handleUploadDocument}
-      />
+      {canEdit && (
+        <UploadDocumentModal
+          isOpen={isUploadModalOpen}
+          onClose={() =>
+            setIsUploadModalOpen(false)
+          }
+          onUpload={handleUploadDocument}
+        />
+      )}
     </main>
   );
 }

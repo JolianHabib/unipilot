@@ -34,6 +34,9 @@ public sealed class AppDbContext(
     public DbSet<Notification> Notifications =>
         Set<Notification>();
 
+    public DbSet<ProjectMember> ProjectMembers =>
+        Set<ProjectMember>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
@@ -56,19 +59,13 @@ public sealed class AppDbContext(
         user.Property(x => x.PasswordHash)
             .IsRequired()
             .HasMaxLength(255);
-user.Property(x => x.PasswordHash)
-    .IsRequired()
-    .HasMaxLength(255);
 
-user.Property(x =>
-        x.PasswordResetTokenHash)
-    .HasMaxLength(64);
+        user.Property(x => x.PasswordResetTokenHash)
+            .HasMaxLength(64);
 
-user.Property(x =>
-    x.PasswordResetTokenExpiresAtUtc);
+        user.Property(x =>
+            x.PasswordResetTokenExpiresAtUtc);
 
-user.Property(x => x.CreatedAtUtc)
-    .IsRequired();
         user.Property(x => x.CreatedAtUtc)
             .IsRequired();
 
@@ -318,113 +315,135 @@ user.Property(x => x.CreatedAtUtc)
             x.Status,
             x.Position
         });
-
         projectTask.HasOne(x =>
                 x.AcademicProject)
-            .WithMany(x =>
-                x.Tasks)
+            .WithMany(x => x.Tasks)
             .HasForeignKey(x =>
                 x.AcademicProjectId)
             .OnDelete(DeleteBehavior.Cascade);
 
         projectTask.HasOne(x =>
                 x.ProjectRequirement)
-            .WithMany(x =>
-                x.Tasks)
+            .WithMany(x => x.Tasks)
             .HasForeignKey(x =>
                 x.ProjectRequirementId)
             .OnDelete(DeleteBehavior.SetNull);
 
         var notification =
-    modelBuilder.Entity<Notification>();
+            modelBuilder.Entity<Notification>();
 
-notification.ToTable("notifications");
+        notification.ToTable("notifications");
+        notification.HasKey(x => x.Id);
 
-notification.HasKey(x => x.Id);
+        notification.Property(x => x.Type)
+            .HasConversion<string>()
+            .IsRequired()
+            .HasMaxLength(30);
 
-notification.Property(x => x.Type)
-    .HasConversion<string>()
-    .IsRequired()
-    .HasMaxLength(30);
+        notification.Property(x => x.Title)
+            .IsRequired()
+            .HasMaxLength(150);
 
-notification.Property(x => x.Title)
-    .IsRequired()
-    .HasMaxLength(150);
+        notification.Property(x => x.Message)
+            .IsRequired()
+            .HasMaxLength(1000);
 
-notification.Property(x => x.Message)
-    .IsRequired()
-    .HasMaxLength(1000);
+        notification.Property(x => x.ActionUrl)
+            .HasMaxLength(500);
 
-notification.Property(x => x.ActionUrl)
-    .HasMaxLength(500);
-notification.Property(x =>
-        x.DeduplicationKey)
-    .HasMaxLength(200);
+        notification.Property(x => x.DeduplicationKey)
+            .HasMaxLength(200);
 
-notification.HasIndex(x => new
-{
-    x.UserId,
-    x.DeduplicationKey
-})
-.IsUnique();
-notification.Property(x => x.IsRead)
-    .IsRequired();
+        notification.HasIndex(x => new
+        {
+            x.UserId,
+            x.DeduplicationKey
+        }).IsUnique();
 
-notification.Property(x => x.CreatedAtUtc)
-    .IsRequired();
+        notification.Property(x => x.IsRead)
+            .IsRequired();
 
-notification.HasIndex(x => new
-{
-    x.UserId,
-    x.CreatedAtUtc
-});
+        notification.Property(x => x.CreatedAtUtc)
+            .IsRequired();
 
-notification.HasOne(x => x.User)
-    .WithMany()
-    .HasForeignKey(x => x.UserId)
-    .OnDelete(DeleteBehavior.Cascade);
+        notification.HasIndex(x => new
+        {
+            x.UserId,
+            x.CreatedAtUtc
+        });
 
+        notification.HasOne(x => x.User)
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-    var projectActivity =
-    modelBuilder.Entity<ProjectActivity>();
+        var projectActivity =
+            modelBuilder.Entity<ProjectActivity>();
 
-projectActivity.ToTable(
-    "project_activities");
+        projectActivity.ToTable("project_activities");
+        projectActivity.HasKey(x => x.Id);
 
-projectActivity.HasKey(x => x.Id);
+        projectActivity.Property(x => x.Type)
+            .HasConversion<string>()
+            .IsRequired()
+            .HasMaxLength(50);
 
-projectActivity.Property(x => x.Type)
-    .HasConversion<string>()
-    .IsRequired()
-    .HasMaxLength(50);
+        projectActivity.Property(x => x.Title)
+            .IsRequired()
+            .HasMaxLength(200);
 
-projectActivity.Property(x => x.Title)
-    .IsRequired()
-    .HasMaxLength(200);
+        projectActivity.Property(x => x.Description)
+            .HasMaxLength(1000);
 
-projectActivity.Property(x => x.Description)
-    .HasMaxLength(1000);
+        projectActivity.Property(x => x.CreatedAtUtc)
+            .IsRequired();
 
-projectActivity.Property(x => x.CreatedAtUtc)
-    .IsRequired();
+        projectActivity.HasIndex(x => new
+        {
+            x.AcademicProjectId,
+            x.CreatedAtUtc
+        });
 
-projectActivity.HasIndex(x => new
-{
-    x.AcademicProjectId,
-    x.CreatedAtUtc
-});
+        projectActivity.HasOne(x => x.AcademicProject)
+            .WithMany(x => x.Activities)
+            .HasForeignKey(x => x.AcademicProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-projectActivity.HasOne(x =>
-        x.AcademicProject)
-    .WithMany(x =>
-        x.Activities)
-    .HasForeignKey(x =>
-        x.AcademicProjectId)
-    .OnDelete(DeleteBehavior.Cascade);
+        projectActivity.HasOne(x => x.User)
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-projectActivity.HasOne(x => x.User)
-    .WithMany()
-    .HasForeignKey(x => x.UserId)
-    .OnDelete(DeleteBehavior.Cascade);
+        var projectMember =
+            modelBuilder.Entity<ProjectMember>();
+
+        projectMember.ToTable("project_members");
+        projectMember.HasKey(x => x.Id);
+
+        projectMember.Property(x => x.Role)
+            .HasConversion<string>()
+            .IsRequired()
+            .HasMaxLength(20);
+
+        projectMember.Property(x => x.JoinedAtUtc)
+            .IsRequired();
+
+        projectMember.HasIndex(x => new
+        {
+            x.AcademicProjectId,
+            x.UserId
+        }).IsUnique();
+
+        projectMember.HasIndex(x => x.UserId);
+
+        projectMember.HasOne(x => x.AcademicProject)
+            .WithMany(x => x.Members)
+            .HasForeignKey(x => x.AcademicProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        projectMember.HasOne(x => x.User)
+            .WithMany(x => x.ProjectMemberships)
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

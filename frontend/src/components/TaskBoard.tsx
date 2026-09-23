@@ -29,6 +29,7 @@ import {
 type TaskBoardProps = {
   token: string;
   projectId: string;
+  readOnly?: boolean;
   onSessionExpired: () => void;
   onRequirementsChanged?: () =>
     Promise<void> | void;
@@ -61,6 +62,7 @@ const columns: BoardColumn[] = [
 export function TaskBoard({
   token,
   projectId,
+  readOnly = false,
   onSessionExpired,
   onRequirementsChanged,
 }: TaskBoardProps) {
@@ -162,6 +164,10 @@ export function TaskBoard({
   }
 
   function openCreateModal() {
+    if (readOnly) {
+      return;
+    }
+
     setEditingTask(null);
     resetForm();
     setError(null);
@@ -169,6 +175,10 @@ export function TaskBoard({
   }
 
   function openEditModal(task: ProjectTask) {
+    if (readOnly) {
+      return;
+    }
+
     setEditingTask(task);
     setTitle(task.title);
     setDescription(task.description ?? "");
@@ -196,6 +206,10 @@ export function TaskBoard({
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
+
+    if (readOnly) {
+      return;
+    }
 
     if (!title.trim()) {
       setError("Task title is required.");
@@ -259,6 +273,10 @@ export function TaskBoard({
     event: DragEvent<HTMLDivElement>,
     taskId: string
   ) {
+    if (readOnly) {
+      return;
+    }
+
     setDraggedTaskId(taskId);
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData(
@@ -270,6 +288,10 @@ export function TaskBoard({
   function handleDragOver(
     event: DragEvent<HTMLDivElement>
   ) {
+    if (readOnly) {
+      return;
+    }
+
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
   }
@@ -279,6 +301,10 @@ export function TaskBoard({
     status: ProjectTaskStatus
   ) {
     event.preventDefault();
+
+    if (readOnly) {
+      return;
+    }
 
     const taskId =
       event.dataTransfer.getData("text/plain") ||
@@ -337,6 +363,10 @@ export function TaskBoard({
   async function handleDelete(
     taskId: string
   ) {
+    if (readOnly) {
+      return;
+    }
+
     const shouldDelete = window.confirm(
       "Delete this task?"
     );
@@ -384,14 +414,20 @@ export function TaskBoard({
           </p>
         </div>
 
-        <button
-          className="new-project-button"
-          type="button"
-          onClick={openCreateModal}
-        >
-          <Plus size={18} />
-          New task
-        </button>
+        {readOnly ? (
+          <span className="project-status">
+            View only
+          </span>
+        ) : (
+          <button
+            className="new-project-button"
+            type="button"
+            onClick={openCreateModal}
+          >
+            <Plus size={18} />
+            New task
+          </button>
+        )}
       </div>
 
       {error && (
@@ -415,12 +451,19 @@ export function TaskBoard({
               <div
                 className={`task-column task-column-${column.status.toLowerCase()}`}
                 key={column.status}
-                onDragOver={handleDragOver}
-                onDrop={(event) =>
-                  void handleDrop(
-                    event,
-                    column.status
-                  )
+                onDragOver={
+                  readOnly
+                    ? undefined
+                    : handleDragOver
+                }
+                onDrop={
+                  readOnly
+                    ? undefined
+                    : (event) =>
+                        void handleDrop(
+                          event,
+                          column.status
+                        )
                 }
               >
                 <div className="task-column-header">
@@ -435,7 +478,9 @@ export function TaskBoard({
                 <div className="task-column-content">
                   {columnTasks.length === 0 ? (
                     <div className="empty-task-column">
-                      Drop tasks here
+                      {readOnly
+                        ? "No tasks"
+                        : "Drop tasks here"}
                     </div>
                   ) : (
                     columnTasks.map((task) => (
@@ -446,22 +491,30 @@ export function TaskBoard({
                             : ""
                         }`}
                         key={task.id}
-                        draggable
-                        onDragStart={(event) =>
-                          handleDragStart(
-                            event,
-                            task.id
-                          )
+                        draggable={!readOnly}
+                        onDragStart={
+                          readOnly
+                            ? undefined
+                            : (event) =>
+                                handleDragStart(
+                                  event,
+                                  task.id
+                                )
                         }
-                        onDragEnd={() =>
-                          setDraggedTaskId(null)
+                        onDragEnd={
+                          readOnly
+                            ? undefined
+                            : () =>
+                                setDraggedTaskId(null)
                         }
                       >
                         <div className="task-card-top">
-                          <GripVertical
-                            className="task-drag-handle"
-                            size={17}
-                          />
+                          {!readOnly && (
+                            <GripVertical
+                              className="task-drag-handle"
+                              size={17}
+                            />
+                          )}
 
                           <span
                             className={`task-priority priority-${task.priority.toLowerCase()}`}
@@ -469,7 +522,8 @@ export function TaskBoard({
                             {task.priority}
                           </span>
 
-                          <button
+                          {!readOnly && (
+                            <button
                             type="button"
                             className="task-edit-button"
                             onClick={() =>
@@ -478,9 +532,11 @@ export function TaskBoard({
                             aria-label="Edit task"
                           >
                             <Pencil size={15} />
-                          </button>
+                            </button>
+                          )}
 
-                          <button
+                          {!readOnly && (
+                            <button
                             type="button"
                             className="task-delete-button"
                             onClick={() =>
@@ -491,7 +547,8 @@ export function TaskBoard({
                             aria-label="Delete task"
                           >
                             <Trash2 size={15} />
-                          </button>
+                            </button>
+                          )}
                         </div>
 
                         <h4>{task.title}</h4>
@@ -525,7 +582,7 @@ export function TaskBoard({
         </div>
       )}
 
-      {isCreateOpen && (
+      {!readOnly && isCreateOpen && (
         <div
           className="modal-backdrop"
           onMouseDown={closeCreateModal}

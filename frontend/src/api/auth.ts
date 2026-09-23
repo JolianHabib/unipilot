@@ -281,6 +281,7 @@ export type AcademicProject = {
   status: string;
   dueDateUtc: string | null;
   createdAtUtc: string;
+  accessRole: "Owner" | "Editor" | "Viewer";
 };
 
 export async function getProjectsByCourse(

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using UniPilot.Application.Activities;
+using UniPilot.Application.ProjectAccess;
 using UniPilot.Application.Tasks;
 using UniPilot.Domain.Activities;
 using UniPilot.Domain.Entities;
@@ -10,7 +11,8 @@ namespace UniPilot.Infrastructure.Tasks;
 
 public sealed class ProjectTaskService(
     AppDbContext dbContext,
-    IProjectActivityService activityService)
+    IProjectActivityService activityService,
+    IProjectAccessService accessService)
     : IProjectTaskService
 {
     public async Task<IReadOnlyList<ProjectTaskResult>?>
@@ -19,7 +21,7 @@ public sealed class ProjectTaskService(
             Guid academicProjectId,
             CancellationToken cancellationToken = default)
     {
-        if (!await OwnsProjectAsync(
+        if (!await accessService.CanViewAsync(
                 ownerId,
                 academicProjectId,
                 cancellationToken))
@@ -53,7 +55,7 @@ public sealed class ProjectTaskService(
         CreateProjectTaskCommand command,
         CancellationToken cancellationToken = default)
     {
-        if (!await OwnsProjectAsync(
+        if (!await accessService.CanEditAsync(
                 command.OwnerId,
                 command.AcademicProjectId,
                 cancellationToken))
@@ -113,14 +115,19 @@ public sealed class ProjectTaskService(
         UpdateProjectTaskCommand command,
         CancellationToken cancellationToken = default)
     {
+        if (!await accessService.CanEditAsync(
+                command.OwnerId,
+                command.AcademicProjectId,
+                cancellationToken))
+        {
+            return null;
+        }
+
         var projectTask = await dbContext.ProjectTasks
-            .Include(task => task.AcademicProject)
-            .ThenInclude(project => project.Course)
             .SingleOrDefaultAsync(
                 task =>
                     task.Id == command.ProjectTaskId &&
-                    task.AcademicProjectId == command.AcademicProjectId &&
-                    task.AcademicProject.Course.OwnerId == command.OwnerId,
+                    task.AcademicProjectId == command.AcademicProjectId,
                 cancellationToken);
 
         if (projectTask is null)
@@ -164,7 +171,7 @@ public sealed class ProjectTaskService(
         MoveProjectTaskCommand command,
         CancellationToken cancellationToken = default)
     {
-        if (!await OwnsProjectAsync(
+        if (!await accessService.CanEditAsync(
                 command.OwnerId,
                 command.AcademicProjectId,
                 cancellationToken))
@@ -269,14 +276,19 @@ public sealed class ProjectTaskService(
         Guid projectTaskId,
         CancellationToken cancellationToken = default)
     {
+        if (!await accessService.CanEditAsync(
+                ownerId,
+                academicProjectId,
+                cancellationToken))
+        {
+            return false;
+        }
+
         var projectTask = await dbContext.ProjectTasks
-            .Include(task => task.AcademicProject)
-            .ThenInclude(project => project.Course)
             .SingleOrDefaultAsync(
                 task =>
                     task.Id == projectTaskId &&
-                    task.AcademicProjectId == academicProjectId &&
-                    task.AcademicProject.Course.OwnerId == ownerId,
+                    task.AcademicProjectId == academicProjectId,
                 cancellationToken);
 
         if (projectTask is null)
@@ -314,18 +326,6 @@ public sealed class ProjectTaskService(
             cancellationToken);
 
         return true;
-    }
-
-    private Task<bool> OwnsProjectAsync(
-        Guid ownerId,
-        Guid academicProjectId,
-        CancellationToken cancellationToken)
-    {
-        return dbContext.AcademicProjects.AnyAsync(
-            project =>
-                project.Id == academicProjectId &&
-                project.Course.OwnerId == ownerId,
-            cancellationToken);
     }
 
     private async Task<bool> IsValidRequirementAsync(

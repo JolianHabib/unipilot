@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using UniPilot.Application.Activities;
 using UniPilot.Application.Documents;
 using UniPilot.Application.Notifications;
+using UniPilot.Application.ProjectAccess;
 using UniPilot.Domain.Activities;
 using UniPilot.Domain.Entities;
 using UniPilot.Infrastructure.Persistence;
@@ -16,6 +17,7 @@ public sealed class ProjectDocumentService(
     IPdfTextExtractor pdfTextExtractor,
     INotificationService notificationService,
     IProjectActivityService activityService,
+    IProjectAccessService accessService,
     ILogger<ProjectDocumentService> logger)
     : IProjectDocumentService
 {
@@ -23,13 +25,10 @@ public sealed class ProjectDocumentService(
         UploadProjectDocumentCommand command,
         CancellationToken cancellationToken = default)
     {
-        var ownsProject = await dbContext.AcademicProjects.AnyAsync(
-            project =>
-                project.Id == command.AcademicProjectId &&
-                project.Course.OwnerId == command.OwnerId,
-            cancellationToken);
-
-        if (!ownsProject)
+        if (!await accessService.CanEditAsync(
+                command.OwnerId,
+                command.AcademicProjectId,
+                cancellationToken))
         {
             return new UploadDocumentResult(
                 UploadDocumentStatus.ProjectNotFound,
@@ -136,13 +135,10 @@ public sealed class ProjectDocumentService(
             Guid academicProjectId,
             CancellationToken cancellationToken = default)
     {
-        var ownsProject = await dbContext.AcademicProjects.AnyAsync(
-            project =>
-                project.Id == academicProjectId &&
-                project.Course.OwnerId == ownerId,
-            cancellationToken);
-
-        if (!ownsProject)
+        if (!await accessService.CanViewAsync(
+                ownerId,
+                academicProjectId,
+                cancellationToken))
         {
             return null;
         }
@@ -171,13 +167,18 @@ public sealed class ProjectDocumentService(
             Guid documentId,
             CancellationToken cancellationToken = default)
     {
-        var ownsDocument = await dbContext.ProjectDocuments.AnyAsync(
+        var academicProjectId = await dbContext.ProjectDocuments
+            .Where(
             document =>
-                document.Id == documentId &&
-                document.AcademicProject.Course.OwnerId == ownerId,
-            cancellationToken);
+                document.Id == documentId)
+            .Select(document => (Guid?)document.AcademicProjectId)
+            .SingleOrDefaultAsync(cancellationToken);
 
-        if (!ownsDocument)
+        if (academicProjectId is null ||
+            !await accessService.CanViewAsync(
+                ownerId,
+                academicProjectId.Value,
+                cancellationToken))
         {
             return null;
         }
@@ -198,12 +199,19 @@ public sealed class ProjectDocumentService(
         Guid documentId,
         CancellationToken cancellationToken = default)
     {
+        if (!await accessService.CanViewAsync(
+                ownerId,
+                academicProjectId,
+                cancellationToken))
+        {
+            return null;
+        }
+
         var document = await dbContext.ProjectDocuments
             .AsNoTracking()
             .Where(existingDocument =>
                 existingDocument.Id == documentId &&
-                existingDocument.AcademicProjectId == academicProjectId &&
-                existingDocument.AcademicProject.Course.OwnerId == ownerId)
+                existingDocument.AcademicProjectId == academicProjectId)
             .Select(existingDocument => new
             {
                 existingDocument.StorageKey,
@@ -235,11 +243,20 @@ public sealed class ProjectDocumentService(
         Guid documentId,
         CancellationToken cancellationToken = default)
     {
+        if (!await accessService.CanEditAsync(
+                ownerId,
+                academicProjectId,
+                cancellationToken))
+        {
+            return new RetryDocumentProcessingResult(
+                RetryDocumentProcessingStatus.DocumentNotFound,
+                null);
+        }
+
         var document = await dbContext.ProjectDocuments.SingleOrDefaultAsync(
             existingDocument =>
                 existingDocument.Id == documentId &&
-                existingDocument.AcademicProjectId == academicProjectId &&
-                existingDocument.AcademicProject.Course.OwnerId == ownerId,
+                existingDocument.AcademicProjectId == academicProjectId,
             cancellationToken);
 
         if (document is null)
@@ -298,11 +315,18 @@ public sealed class ProjectDocumentService(
         Guid documentId,
         CancellationToken cancellationToken = default)
     {
+        if (!await accessService.CanEditAsync(
+                ownerId,
+                academicProjectId,
+                cancellationToken))
+        {
+            return false;
+        }
+
         var document = await dbContext.ProjectDocuments.SingleOrDefaultAsync(
             existingDocument =>
                 existingDocument.Id == documentId &&
-                existingDocument.AcademicProjectId == academicProjectId &&
-                existingDocument.AcademicProject.Course.OwnerId == ownerId,
+                existingDocument.AcademicProjectId == academicProjectId,
             cancellationToken);
 
         if (document is null)

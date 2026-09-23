@@ -53,7 +53,7 @@ public sealed class AcademicProjectService(
             $"{project.Title} was created with Draft status.",
             cancellationToken);
 
-        return Map(project);
+        return Map(project, "Owner");
     }
 
     public async Task<IReadOnlyList<AcademicProjectResult>?>
@@ -84,7 +84,8 @@ public sealed class AcademicProjectService(
                 project.Description,
                 project.DueDateUtc,
                 project.Status.ToString(),
-                project.CreatedAtUtc))
+                project.CreatedAtUtc,
+                "Owner"))
             .ToListAsync(cancellationToken);
     }
 
@@ -95,7 +96,10 @@ public sealed class AcademicProjectService(
     {
         return await dbContext.AcademicProjects
             .AsNoTracking()
-            .Where(project => project.Course.OwnerId == ownerId)
+            .Where(project =>
+                project.Course.OwnerId == ownerId ||
+                project.Members.Any(member =>
+                    member.UserId == ownerId))
             .OrderByDescending(project => project.CreatedAtUtc)
             .Select(project => new AcademicProjectResult(
                 project.Id,
@@ -104,7 +108,19 @@ public sealed class AcademicProjectService(
                 project.Description,
                 project.DueDateUtc,
                 project.Status.ToString(),
-                project.CreatedAtUtc))
+                project.CreatedAtUtc,
+                project.Course.OwnerId == ownerId
+                    ? "Owner"
+                    : project.Members
+                        .Where(member =>
+                            member.UserId == ownerId)
+                        .Select(member =>
+                            member.Role ==
+                                UniPilot.Domain.Projects
+                                    .ProjectMemberRole.Editor
+                                ? "Editor"
+                                : "Viewer")
+                        .First()))
             .ToListAsync(cancellationToken);
     }
 
@@ -113,14 +129,25 @@ public sealed class AcademicProjectService(
         CancellationToken cancellationToken = default)
     {
         var project = await dbContext.AcademicProjects
+            .Include(existingProject => existingProject.Course)
+            .Include(existingProject => existingProject.Members)
             .SingleOrDefaultAsync(
                 existingProject =>
                     existingProject.Id == command.AcademicProjectId &&
-                    existingProject.CourseId == command.CourseId &&
-                    existingProject.Course.OwnerId == command.OwnerId,
+                    existingProject.CourseId == command.CourseId,
                 cancellationToken);
 
-        if (project is null)
+        var isOwner =
+            project?.Course.OwnerId == command.OwnerId;
+
+        var isEditor =
+            project?.Members.Any(member =>
+                member.UserId == command.OwnerId &&
+                member.Role ==
+                    UniPilot.Domain.Projects.ProjectMemberRole.Editor)
+            == true;
+
+        if (project is null || (!isOwner && !isEditor))
         {
             return null;
         }
@@ -148,7 +175,9 @@ public sealed class AcademicProjectService(
                 cancellationToken);
         }
 
-        return Map(project);
+        return Map(
+            project,
+            isOwner ? "Owner" : "Editor");
     }
 
     public async Task<bool> DeleteAsync(
@@ -198,7 +227,8 @@ public sealed class AcademicProjectService(
     }
 
     private static AcademicProjectResult Map(
-        AcademicProject project)
+        AcademicProject project,
+        string accessRole)
     {
         return new AcademicProjectResult(
             project.Id,
@@ -207,6 +237,7 @@ public sealed class AcademicProjectService(
             project.Description,
             project.DueDateUtc,
             project.Status.ToString(),
-            project.CreatedAtUtc);
+            project.CreatedAtUtc,
+            accessRole);
     }
 }

@@ -4334,3 +4334,226 @@ textarea {
     padding-inline: 11px;
   }
 }
+.project-members-panel {
+  overflow: hidden;
+  border: 1px solid #e3e6ef;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 34px rgba(32, 40, 74, 0.05);
+}
+
+.project-members-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 25px 28px;
+  border-bottom: 1px solid #e8eaf1;
+}
+
+.project-members-heading h2 {
+  margin: 0;
+  color: #182137;
+}
+
+.project-members-heading p {
+  margin: 7px 0 0;
+  color: #858da1;
+}
+
+.project-members-heading > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  color: #5759d8;
+  border-radius: 20px;
+  background: #eeeeff;
+  font-weight: 750;
+}
+
+.project-member-form {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 150px auto;
+  align-items: end;
+  gap: 14px;
+  padding: 23px 28px;
+  background: #fafbfe;
+}
+
+.project-member-form label {
+  display: grid;
+  gap: 8px;
+  color: #5f687d;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.project-member-email-field {
+  display: flex;
+  min-height: 43px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  color: #8991a5;
+  border: 1px solid #dfe3ec;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.project-member-email-field input {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+}
+
+.project-member-form select,
+.project-member-row select {
+  min-height: 43px;
+  padding: 0 12px;
+  color: #394158;
+  border: 1px solid #dfe3ec;
+  border-radius: 10px;
+  background: #ffffff;
+  font: inherit;
+}
+
+.project-member-form button {
+  display: inline-flex;
+  min-height: 43px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 17px;
+  color: #ffffff;
+  border: 0;
+  border-radius: 10px;
+  background: #5b5ce2;
+  font: inherit;
+  font-weight: 750;
+}
+
+.project-members-error {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 18px 28px 0;
+  padding: 11px 13px;
+  color: #a23c33;
+  border-radius: 10px;
+  background: #fff0ed;
+}
+
+.project-members-state {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  align-content: center;
+  gap: 9px;
+  padding: 30px;
+  color: #858da1;
+  text-align: center;
+}
+
+.project-members-state strong {
+  color: #252e43;
+}
+
+.project-members-state p {
+  margin: 0;
+}
+
+.project-members-list {
+  padding: 0 28px 8px;
+}
+
+.project-member-row {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 130px 42px;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 0;
+  border-bottom: 1px solid #edf0f5;
+}
+
+.project-member-row:last-child {
+  border-bottom: 0;
+}
+
+.project-member-avatar {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  color: #5558d9;
+  border-radius: 50%;
+  background: #eeeeff;
+  font-weight: 800;
+}
+
+.project-member-details {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.project-member-details strong {
+  color: #20293d;
+}
+
+.project-member-details span {
+  overflow: hidden;
+  color: #858da1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-member-remove {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  place-items: center;
+  color: #b04137;
+  border: 1px solid #f1d0cc;
+  border-radius: 9px;
+  background: #fff7f6;
+}
+
+@media (max-width: 720px) {
+  .project-member-form {
+    grid-template-columns: 1fr;
+  }
+
+  .project-member-row {
+    grid-template-columns: 44px minmax(0, 1fr) 42px;
+  }
+
+  .project-member-row select {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+}
+.requirement-row.view-only {
+  display: block !important;
+  width: 100%;
+  padding: 18px !important;
+}
+
+.requirement-row.view-only .requirement-details {
+  display: block;
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.requirement-row.view-only .requirement-title {
+  width: 100%;
+}
+
+.requirement-row.view-only .requirement-title h3 {
+  flex: 1;
+  min-width: 0;
+}
