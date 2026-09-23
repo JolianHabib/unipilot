@@ -178,6 +178,172 @@ public sealed class ProjectMemberEndpointsTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Viewer_CanReadTasks_ButCannotCreateTask()
+    {
+        var owner = await RegisterAndLoginAsync("Owner");
+        var viewer = await RegisterAndLoginAsync("Viewer");
+        var projectId = await CreateProjectAsync(owner.Token);
+
+        await AddMemberAsync(
+            projectId,
+            owner.Token,
+            viewer.Email,
+            "Viewer");
+
+        using var getRequest = CreateAuthorizedRequest(
+            HttpMethod.Get,
+            $"/api/projects/{projectId}/tasks",
+            viewer.Token);
+
+        var getResponse = await _client.SendAsync(getRequest);
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+
+        using var createRequest = CreateAuthorizedRequest(
+            HttpMethod.Post,
+            $"/api/projects/{projectId}/tasks",
+            viewer.Token);
+
+        createRequest.Content = JsonContent.Create(new
+        {
+            title = "Viewer must not create this task",
+            description = "Read-only access check",
+            priority = "Medium",
+            dueDateUtc = (string?)null
+        });
+
+        var createResponse = await _client.SendAsync(createRequest);
+
+        Assert.Equal(HttpStatusCode.NotFound, createResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Editor_CanCreateTask_ButCannotManageMembers()
+    {
+        var owner = await RegisterAndLoginAsync("Owner");
+        var editor = await RegisterAndLoginAsync("Editor");
+        var thirdUser = await RegisterAndLoginAsync("Third User");
+        var projectId = await CreateProjectAsync(owner.Token);
+
+        await AddMemberAsync(
+            projectId,
+            owner.Token,
+            editor.Email,
+            "Editor");
+
+        using var taskRequest = CreateAuthorizedRequest(
+            HttpMethod.Post,
+            $"/api/projects/{projectId}/tasks",
+            editor.Token);
+
+        taskRequest.Content = JsonContent.Create(new
+        {
+            title = "Editor task",
+            description = "Created by an editor",
+            priority = "High",
+            dueDateUtc = (string?)null
+        });
+
+        var taskResponse = await _client.SendAsync(taskRequest);
+
+        Assert.Equal(HttpStatusCode.Created, taskResponse.StatusCode);
+
+        var memberResponse = await SendMemberRequestAsync(
+            HttpMethod.Post,
+            projectId,
+            editor.Token,
+            new
+            {
+                email = thirdUser.Email,
+                role = "Viewer"
+            });
+
+        Assert.Equal(HttpStatusCode.NotFound, memberResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task UninvitedUser_CannotReadProjectResources()
+    {
+        var owner = await RegisterAndLoginAsync("Owner");
+        var stranger = await RegisterAndLoginAsync("Stranger");
+        var projectId = await CreateProjectAsync(owner.Token);
+
+        var protectedUris = new[]
+        {
+            $"/api/projects/{projectId}/documents",
+            $"/api/projects/{projectId}/requirements",
+            $"/api/projects/{projectId}/tasks",
+            $"/api/projects/{projectId}/activities"
+        };
+
+        foreach (var uri in protectedUris)
+        {
+            using var request = CreateAuthorizedRequest(
+                HttpMethod.Get,
+                uri,
+                stranger.Token);
+
+            var response = await _client.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task SharedProject_AppearsWithViewerAccessRole()
+    {
+        var owner = await RegisterAndLoginAsync("Owner");
+        var viewer = await RegisterAndLoginAsync("Viewer");
+        var projectId = await CreateProjectAsync(owner.Token);
+
+        await AddMemberAsync(
+            projectId,
+            owner.Token,
+            viewer.Email,
+            "Viewer");
+
+        using var request = CreateAuthorizedRequest(
+            HttpMethod.Get,
+            "/api/projects",
+            viewer.Token);
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var body = JsonDocument.Parse(
+            await response.Content.ReadAsStringAsync());
+
+        var sharedProject = body.RootElement
+            .EnumerateArray()
+            .Single(project =>
+                project.GetProperty("id").GetGuid() == projectId);
+
+        Assert.Equal(
+            "Viewer",
+            sharedProject.GetProperty("accessRole").GetString());
+    }
+
+    private async Task AddMemberAsync(
+        Guid projectId,
+        string ownerToken,
+        string memberEmail,
+        string role)
+    {
+        var response = await SendMemberRequestAsync(
+            HttpMethod.Post,
+            projectId,
+            ownerToken,
+            new
+            {
+                email = memberEmail,
+                role
+            });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
     private async Task<HttpResponseMessage> SendMemberRequestAsync(
         HttpMethod method,
         Guid projectId,
