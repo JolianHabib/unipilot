@@ -63,11 +63,38 @@ public sealed class ProjectMembersController(
         {
             ProjectMemberOperationStatus.Success =>
                 StatusCode(StatusCodes.Status201Created, result.Member),
-            
             ProjectMemberOperationStatus.OwnerCannotBeMember =>
                 Conflict(new { message = "The project owner already has full access." }),
             ProjectMemberOperationStatus.AlreadyMember =>
-                Conflict(new { message = "This user is already a project member." }),
+                Conflict(new { message = "This user already has a membership or pending invitation." }),
+            _ => NotFound(new { message = "Project was not found." })
+        };
+    }
+
+    [HttpPost("{memberId:guid}/resend-invitation")]
+    public async Task<IActionResult> ResendInvitation(
+        Guid projectId,
+        Guid memberId,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var ownerId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await memberService.ResendInvitationAsync(
+            ownerId,
+            projectId,
+            memberId,
+            cancellationToken);
+
+        return result.Status switch
+        {
+            ProjectMemberOperationStatus.Success => Ok(result.Member),
+            ProjectMemberOperationStatus.InvitationNotPending =>
+                Conflict(new { message = "This member has already accepted the invitation." }),
+            ProjectMemberOperationStatus.MemberNotFound =>
+                NotFound(new { message = "Pending invitation was not found." }),
             _ => NotFound(new { message = "Project was not found." })
         };
     }

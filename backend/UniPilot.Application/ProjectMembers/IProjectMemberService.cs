@@ -23,6 +23,12 @@ public interface IProjectMemberService
         ProjectMemberRole role,
         CancellationToken cancellationToken = default);
 
+    Task<ProjectMemberOperationResult> ResendInvitationAsync(
+        Guid ownerId,
+        Guid academicProjectId,
+        Guid memberId,
+        CancellationToken cancellationToken = default);
+
     Task<ProjectMemberOperationStatus> RemoveAsync(
         Guid ownerId,
         Guid academicProjectId,

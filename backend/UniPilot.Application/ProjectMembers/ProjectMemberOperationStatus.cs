@@ -7,5 +7,6 @@ public enum ProjectMemberOperationStatus
     UserNotFound,
     OwnerCannotBeMember,
     AlreadyMember,
-    MemberNotFound
+    MemberNotFound,
+    InvitationNotPending
 }

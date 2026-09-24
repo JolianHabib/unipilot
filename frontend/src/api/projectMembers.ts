@@ -7,21 +7,19 @@ export type ProjectMemberRole = "Viewer" | "Editor";
 export type ProjectMember = {
   id: string;
   academicProjectId: string;
-  userId: string;
+  userId: string | null;
   fullName: string;
   email: string;
   role: ProjectMemberRole;
   joinedAtUtc: string;
+  isPending: boolean;
 };
 
 type ApiError = {
   message?: string;
 };
 
-async function readError(
-  response: Response,
-  fallback: string
-) {
+async function readError(response: Response, fallback: string) {
   if (response.status === 401) {
     return new Error("SESSION_EXPIRED");
   }
@@ -41,17 +39,12 @@ export async function getProjectMembers(
   const response = await fetch(
     `${API_BASE_URL}/api/projects/${projectId}/members`,
     {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     }
   );
 
   if (!response.ok) {
-    throw await readError(
-      response,
-      "Unable to load project members."
-    );
+    throw await readError(response, "Unable to load project members.");
   }
 
   return (await response.json()) as ProjectMember[];
@@ -76,10 +69,27 @@ export async function addProjectMember(
   );
 
   if (!response.ok) {
-    throw await readError(
-      response,
-      "Unable to add the project member."
-    );
+    throw await readError(response, "Unable to add the project member.");
+  }
+
+  return (await response.json()) as ProjectMember;
+}
+
+export async function resendProjectInvitation(
+  token: string,
+  projectId: string,
+  memberId: string
+): Promise<ProjectMember> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/projects/${projectId}/members/${memberId}/resend-invitation`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+  if (!response.ok) {
+    throw await readError(response, "Unable to resend the invitation.");
   }
 
   return (await response.json()) as ProjectMember;
@@ -104,10 +114,7 @@ export async function updateProjectMemberRole(
   );
 
   if (!response.ok) {
-    throw await readError(
-      response,
-      "Unable to change the member role."
-    );
+    throw await readError(response, "Unable to change the member role.");
   }
 
   return (await response.json()) as ProjectMember;
@@ -122,16 +129,11 @@ export async function removeProjectMember(
     `${API_BASE_URL}/api/projects/${projectId}/members/${memberId}`,
     {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     }
   );
 
   if (!response.ok) {
-    throw await readError(
-      response,
-      "Unable to remove the project member."
-    );
+    throw await readError(response, "Unable to remove the project member.");
   }
 }

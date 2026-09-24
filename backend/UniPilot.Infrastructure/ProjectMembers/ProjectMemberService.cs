@@ -21,35 +21,26 @@ public sealed class ProjectMemberService(
     private static readonly TimeSpan InvitationLifetime =
         TimeSpan.FromDays(7);
 
-    public async Task<IReadOnlyList<ProjectMemberResult>?>
-        GetByProjectAsync(
-            Guid ownerId,
-            Guid academicProjectId,
-            CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ProjectMemberResult>?> GetByProjectAsync(
+        Guid ownerId,
+        Guid academicProjectId,
+        CancellationToken cancellationToken = default)
     {
-        if (!await OwnsProjectAsync(
-                ownerId,
-                academicProjectId,
-                cancellationToken))
+        if (!await OwnsProjectAsync(ownerId, academicProjectId, cancellationToken))
         {
             return null;
         }
 
         return await dbContext.ProjectMembers
             .AsNoTracking()
-            .Where(member =>
-                member.AcademicProjectId == academicProjectId)
+            .Where(member => member.AcademicProjectId == academicProjectId)
             .OrderBy(member => member.JoinedAtUtc)
             .Select(member => new ProjectMemberResult(
                 member.Id,
                 member.AcademicProjectId,
                 member.UserId,
-                member.User == null
-                    ? "Pending invitation"
-                    : member.User.FullName,
-                member.User == null
-                    ? member.InvitedEmail!
-                    : member.User.Email,
+                member.User == null ? "Pending invitation" : member.User.FullName,
+                member.User == null ? member.InvitedEmail! : member.User.Email,
                 member.Role.ToString(),
                 member.JoinedAtUtc,
                 member.UserId == null))
@@ -63,50 +54,32 @@ public sealed class ProjectMemberService(
         ProjectMemberRole role,
         CancellationToken cancellationToken = default)
     {
-        var project = await dbContext.AcademicProjects
-            .AsNoTracking()
-            .Where(item =>
-                item.Id == academicProjectId &&
-                item.Course.OwnerId == ownerId)
-            .Select(item => new
-            {
-                item.Title,
-                OwnerName = item.Course.Owner.FullName
-            })
-            .SingleOrDefaultAsync(cancellationToken);
+        var project = await GetOwnedProjectAsync(
+            ownerId,
+            academicProjectId,
+            cancellationToken);
 
         if (project is null)
         {
             return Result(ProjectMemberOperationStatus.ProjectNotFound);
         }
 
-        var normalizedEmail =
-            email.Trim().ToLowerInvariant();
-
-        var user = await dbContext.Users
-            .SingleOrDefaultAsync(
-                candidate =>
-                    candidate.Email == normalizedEmail,
-                cancellationToken);
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var user = await dbContext.Users.SingleOrDefaultAsync(
+            candidate => candidate.Email == normalizedEmail,
+            cancellationToken);
 
         if (user?.Id == ownerId)
         {
-            return Result(
-                ProjectMemberOperationStatus.OwnerCannotBeMember);
+            return Result(ProjectMemberOperationStatus.OwnerCannotBeMember);
         }
 
-        var alreadyMember =
-            await dbContext.ProjectMembers.AnyAsync(
-                member =>
-                    member.AcademicProjectId == academicProjectId &&
-                    (
-                        member.InvitedEmail == normalizedEmail ||
-                        (
-                            user != null &&
-                            member.UserId == user.Id
-                        )
-                    ),
-                cancellationToken);
+        var alreadyMember = await dbContext.ProjectMembers.AnyAsync(
+            member =>
+                member.AcademicProjectId == academicProjectId &&
+                (member.InvitedEmail == normalizedEmail ||
+                    (user != null && member.UserId == user.Id)),
+            cancellationToken);
 
         if (alreadyMember)
         {
@@ -114,13 +87,7 @@ public sealed class ProjectMemberService(
         }
 
         var now = DateTime.UtcNow;
-        string? invitationToken = null;
-
-        if (user is null)
-        {
-            invitationToken = CreateInvitationToken();
-        }
-
+        var invitationToken = user is null ? CreateInvitationToken() : null;
         var member = new ProjectMember
         {
             AcademicProjectId = academicProjectId,
@@ -133,9 +100,7 @@ public sealed class ProjectMemberService(
             InvitationExpiresAtUtc = invitationToken is null
                 ? null
                 : now.Add(InvitationLifetime),
-            InvitationSentAtUtc = invitationToken is null
-                ? null
-                : now,
+            InvitationSentAtUtc = invitationToken is null ? null : now,
             Role = role,
             JoinedAtUtc = now
         };
@@ -145,26 +110,19 @@ public sealed class ProjectMemberService(
 
         if (invitationToken is not null)
         {
-            var invitationLink =
-                BuildInvitationLink(invitationToken);
-
             try
             {
-                await invitationEmailSender
-                    .SendProjectInvitationAsync(
-                        normalizedEmail,
-                        project.OwnerName,
-                        project.Title,
-                        role.ToString(),
-                        invitationLink,
-                        cancellationToken);
+                await SendInvitationAsync(
+                    member,
+                    project.OwnerName,
+                    project.Title,
+                    invitationToken,
+                    cancellationToken);
             }
             catch
             {
                 dbContext.ProjectMembers.Remove(member);
-                await dbContext.SaveChangesAsync(
-                    CancellationToken.None);
-
+                await dbContext.SaveChangesAsync(CancellationToken.None);
                 throw;
             }
         }
@@ -173,17 +131,87 @@ public sealed class ProjectMemberService(
             ownerId,
             academicProjectId,
             ProjectActivityType.ProjectMemberAdded,
-            user is null
-                ? "Project invitation sent"
-                : "Project member added",
+            user is null ? "Project invitation sent" : "Project member added",
             user is null
                 ? $"{normalizedEmail} was invited as {role}."
                 : $"{user.FullName} was added as {role}.",
             cancellationToken);
 
-        return Result(
-            ProjectMemberOperationStatus.Success,
-            Map(member));
+        return Result(ProjectMemberOperationStatus.Success, Map(member));
+    }
+
+    public async Task<ProjectMemberOperationResult> ResendInvitationAsync(
+        Guid ownerId,
+        Guid academicProjectId,
+        Guid memberId,
+        CancellationToken cancellationToken = default)
+    {
+        var project = await GetOwnedProjectAsync(
+            ownerId,
+            academicProjectId,
+            cancellationToken);
+
+        if (project is null)
+        {
+            return Result(ProjectMemberOperationStatus.ProjectNotFound);
+        }
+
+        var member = await dbContext.ProjectMembers
+            .Include(item => item.User)
+            .SingleOrDefaultAsync(
+                item => item.Id == memberId &&
+                    item.AcademicProjectId == academicProjectId,
+                cancellationToken);
+
+        if (member is null)
+        {
+            return Result(ProjectMemberOperationStatus.MemberNotFound);
+        }
+
+        if (member.UserId is not null ||
+            string.IsNullOrWhiteSpace(member.InvitedEmail))
+        {
+            return Result(ProjectMemberOperationStatus.InvitationNotPending);
+        }
+
+        var previousHash = member.InvitationTokenHash;
+        var previousExpiry = member.InvitationExpiresAtUtc;
+        var previousSentAt = member.InvitationSentAtUtc;
+        var invitationToken = CreateInvitationToken();
+        var now = DateTime.UtcNow;
+
+        member.InvitationTokenHash = HashInvitationToken(invitationToken);
+        member.InvitationExpiresAtUtc = now.Add(InvitationLifetime);
+        member.InvitationSentAtUtc = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await SendInvitationAsync(
+                member,
+                project.OwnerName,
+                project.Title,
+                invitationToken,
+                cancellationToken);
+        }
+        catch
+        {
+            member.InvitationTokenHash = previousHash;
+            member.InvitationExpiresAtUtc = previousExpiry;
+            member.InvitationSentAtUtc = previousSentAt;
+            await dbContext.SaveChangesAsync(CancellationToken.None);
+            throw;
+        }
+
+        await activityService.RecordAsync(
+            ownerId,
+            academicProjectId,
+            ProjectActivityType.ProjectMemberAdded,
+            "Project invitation resent",
+            $"The invitation for {member.InvitedEmail} was sent again.",
+            cancellationToken);
+
+        return Result(ProjectMemberOperationStatus.Success, Map(member));
     }
 
     public async Task<ProjectMemberOperationResult> UpdateRoleAsync(
@@ -193,10 +221,7 @@ public sealed class ProjectMemberService(
         ProjectMemberRole role,
         CancellationToken cancellationToken = default)
     {
-        if (!await OwnsProjectAsync(
-                ownerId,
-                academicProjectId,
-                cancellationToken))
+        if (!await OwnsProjectAsync(ownerId, academicProjectId, cancellationToken))
         {
             return Result(ProjectMemberOperationStatus.ProjectNotFound);
         }
@@ -204,8 +229,7 @@ public sealed class ProjectMemberService(
         var member = await dbContext.ProjectMembers
             .Include(item => item.User)
             .SingleOrDefaultAsync(
-                item =>
-                    item.Id == memberId &&
+                item => item.Id == memberId &&
                     item.AcademicProjectId == academicProjectId,
                 cancellationToken);
 
@@ -227,9 +251,7 @@ public sealed class ProjectMemberService(
                 : $"{member.User.FullName} is now {role}.",
             cancellationToken);
 
-        return Result(
-            ProjectMemberOperationStatus.Success,
-            Map(member));
+        return Result(ProjectMemberOperationStatus.Success, Map(member));
     }
 
     public async Task<ProjectMemberOperationStatus> RemoveAsync(
@@ -238,10 +260,7 @@ public sealed class ProjectMemberService(
         Guid memberId,
         CancellationToken cancellationToken = default)
     {
-        if (!await OwnsProjectAsync(
-                ownerId,
-                academicProjectId,
-                cancellationToken))
+        if (!await OwnsProjectAsync(ownerId, academicProjectId, cancellationToken))
         {
             return ProjectMemberOperationStatus.ProjectNotFound;
         }
@@ -249,8 +268,7 @@ public sealed class ProjectMemberService(
         var member = await dbContext.ProjectMembers
             .Include(item => item.User)
             .SingleOrDefaultAsync(
-                item =>
-                    item.Id == memberId &&
+                item => item.Id == memberId &&
                     item.AcademicProjectId == academicProjectId,
                 cancellationToken);
 
@@ -259,8 +277,7 @@ public sealed class ProjectMemberService(
             return ProjectMemberOperationStatus.MemberNotFound;
         }
 
-        var memberName =
-            member.User?.FullName
+        var memberName = member.User?.FullName
             ?? member.InvitedEmail
             ?? "Pending member";
 
@@ -278,38 +295,30 @@ public sealed class ProjectMemberService(
         return ProjectMemberOperationStatus.Success;
     }
 
-    public async Task<ProjectInvitationAcceptanceResult>
-        AcceptInvitationAsync(
-            Guid userId,
-            string invitationToken,
-            CancellationToken cancellationToken = default)
+    public async Task<ProjectInvitationAcceptanceResult> AcceptInvitationAsync(
+        Guid userId,
+        string invitationToken,
+        CancellationToken cancellationToken = default)
     {
-        var tokenHash = HashInvitationToken(
-            invitationToken.Trim());
-
-        var member = await dbContext.ProjectMembers
-            .SingleOrDefaultAsync(
-                item =>
-                    item.InvitationTokenHash == tokenHash,
-                cancellationToken);
+        var tokenHash = HashInvitationToken(invitationToken.Trim());
+        var member = await dbContext.ProjectMembers.SingleOrDefaultAsync(
+            item => item.InvitationTokenHash == tokenHash,
+            cancellationToken);
 
         if (member is null)
         {
-            return AcceptanceResult(
-                ProjectInvitationAcceptanceStatus.InvalidToken);
+            return AcceptanceResult(ProjectInvitationAcceptanceStatus.InvalidToken);
         }
 
         if (member.InvitationExpiresAtUtc is null ||
             member.InvitationExpiresAtUtc <= DateTime.UtcNow)
         {
-            return AcceptanceResult(
-                ProjectInvitationAcceptanceStatus.Expired);
+            return AcceptanceResult(ProjectInvitationAcceptanceStatus.Expired);
         }
 
-        var user = await dbContext.Users
-            .SingleOrDefaultAsync(
-                item => item.Id == userId,
-                cancellationToken);
+        var user = await dbContext.Users.SingleOrDefaultAsync(
+            item => item.Id == userId,
+            cancellationToken);
 
         if (user is null ||
             !string.Equals(
@@ -317,25 +326,20 @@ public sealed class ProjectMemberService(
                 member.InvitedEmail,
                 StringComparison.OrdinalIgnoreCase))
         {
-            return AcceptanceResult(
-                ProjectInvitationAcceptanceStatus.EmailMismatch);
+            return AcceptanceResult(ProjectInvitationAcceptanceStatus.EmailMismatch);
         }
 
-        var existingMembership =
-            await dbContext.ProjectMembers
-                .SingleOrDefaultAsync(
-                    item =>
-                        item.Id != member.Id &&
-                        item.AcademicProjectId ==
-                            member.AcademicProjectId &&
-                        item.UserId == userId,
-                    cancellationToken);
+        var existingMembership = await dbContext.ProjectMembers
+            .SingleOrDefaultAsync(
+                item => item.Id != member.Id &&
+                    item.AcademicProjectId == member.AcademicProjectId &&
+                    item.UserId == userId,
+                cancellationToken);
 
         if (existingMembership is not null)
         {
             dbContext.ProjectMembers.Remove(member);
             await dbContext.SaveChangesAsync(cancellationToken);
-
             return AcceptanceResult(
                 ProjectInvitationAcceptanceStatus.Success,
                 existingMembership.AcademicProjectId);
@@ -346,7 +350,6 @@ public sealed class ProjectMemberService(
         member.InvitedEmail = null;
         member.InvitationTokenHash = null;
         member.InvitationExpiresAtUtc = null;
-
         await dbContext.SaveChangesAsync(cancellationToken);
 
         await activityService.RecordAsync(
@@ -362,57 +365,77 @@ public sealed class ProjectMemberService(
             member.AcademicProjectId);
     }
 
+    private async Task<OwnedProject?> GetOwnedProjectAsync(
+        Guid ownerId,
+        Guid academicProjectId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.AcademicProjects
+            .AsNoTracking()
+            .Where(item => item.Id == academicProjectId &&
+                item.Course.OwnerId == ownerId)
+            .Select(item => new OwnedProject(
+                item.Title,
+                item.Course.Owner.FullName))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     private Task<bool> OwnsProjectAsync(
         Guid ownerId,
         Guid academicProjectId,
         CancellationToken cancellationToken)
     {
         return dbContext.AcademicProjects.AnyAsync(
-            project =>
-                project.Id == academicProjectId &&
+            project => project.Id == academicProjectId &&
                 project.Course.OwnerId == ownerId,
             cancellationToken);
     }
 
-    private string BuildInvitationLink(
-        string invitationToken)
+    private Task SendInvitationAsync(
+        ProjectMember member,
+        string ownerName,
+        string projectTitle,
+        string invitationToken,
+        CancellationToken cancellationToken)
     {
-        var frontendBaseUrl =
-            configuration["Frontend:BaseUrl"]
+        return invitationEmailSender.SendProjectInvitationAsync(
+            member.InvitedEmail!,
+            ownerName,
+            projectTitle,
+            member.Role.ToString(),
+            BuildInvitationLink(invitationToken),
+            cancellationToken);
+    }
+
+    private string BuildInvitationLink(string invitationToken)
+    {
+        var frontendBaseUrl = configuration["Frontend:BaseUrl"]
             ?? "http://localhost:5173";
 
-        return
-            $"{frontendBaseUrl.TrimEnd('/')}" +
+        return $"{frontendBaseUrl.TrimEnd('/')}" +
             "/invitations/accept?token=" +
             Uri.EscapeDataString(invitationToken);
     }
 
     private static string CreateInvitationToken()
     {
-        return Convert.ToHexString(
-            RandomNumberGenerator.GetBytes(32));
+        return Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     }
 
-    private static string HashInvitationToken(
-        string invitationToken)
+    private static string HashInvitationToken(string invitationToken)
     {
         return Convert.ToHexString(
-            SHA256.HashData(
-                Encoding.UTF8.GetBytes(invitationToken)));
+            SHA256.HashData(Encoding.UTF8.GetBytes(invitationToken)));
     }
 
-    private static ProjectMemberResult Map(
-        ProjectMember member)
+    private static ProjectMemberResult Map(ProjectMember member)
     {
         return new ProjectMemberResult(
             member.Id,
             member.AcademicProjectId,
             member.UserId,
-            member.User?.FullName
-                ?? "Pending invitation",
-            member.User?.Email
-                ?? member.InvitedEmail
-                ?? string.Empty,
+            member.User?.FullName ?? "Pending invitation",
+            member.User?.Email ?? member.InvitedEmail ?? string.Empty,
             member.Role.ToString(),
             member.JoinedAtUtc,
             member.UserId is null);
@@ -425,13 +448,14 @@ public sealed class ProjectMemberService(
         return new ProjectMemberOperationResult(status, member);
     }
 
-    private static ProjectInvitationAcceptanceResult
-        AcceptanceResult(
-            ProjectInvitationAcceptanceStatus status,
-            Guid? academicProjectId = null)
+    private static ProjectInvitationAcceptanceResult AcceptanceResult(
+        ProjectInvitationAcceptanceStatus status,
+        Guid? academicProjectId = null)
     {
-        return new ProjectInvitationAcceptanceResult(
-            status,
-            academicProjectId);
+        return new ProjectInvitationAcceptanceResult(status, academicProjectId);
     }
+
+    private sealed record OwnedProject(
+        string Title,
+        string OwnerName);
 }
