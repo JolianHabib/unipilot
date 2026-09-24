@@ -111,6 +111,47 @@ export async function login(
   return data.accessToken;
 }
 
+
+// Add this function to src/api/auth.ts after the existing login function.
+export async function googleLogin(
+  credential: string
+): Promise<string> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/auth/google`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ credential }),
+    }
+  );
+
+  if (!response.ok) {
+    let message =
+      "Unable to sign in with Google. Please try again.";
+
+    try {
+      const body = (await response.json()) as {
+        message?: string;
+      };
+
+      if (body.message) {
+        message = body.message;
+      }
+    } catch {
+      // Keep the fallback message when no JSON body is returned.
+    }
+
+    throw new Error(message);
+  }
+
+  const data =
+    (await response.json()) as LoginResponse;
+
+  return data.accessToken;
+}
+
 export async function getCurrentUser(
   token: string
 ): Promise<CurrentUser> {

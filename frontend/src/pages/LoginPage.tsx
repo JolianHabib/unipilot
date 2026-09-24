@@ -4,6 +4,10 @@ import {
 } from "react";
 
 import {
+  GoogleLogin,
+} from "@react-oauth/google";
+
+import {
   ArrowRight,
   BrainCircuit,
   FileCheck2,
@@ -11,6 +15,7 @@ import {
 } from "lucide-react";
 
 import {
+  googleLogin,
   login,
   register,
 } from "../api/auth";
@@ -116,6 +121,34 @@ export function LoginPage({
     }
   }
 
+  async function handleGoogleSuccess(
+    credential?: string
+  ) {
+    if (!credential) {
+      setError("Google did not return a sign-in credential.");
+      return;
+    }
+
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const accessToken = await googleLogin(
+        credential
+      );
+
+      onLogin(accessToken);
+    } catch (exception) {
+      setError(
+        exception instanceof Error
+          ? exception.message
+          : "Unable to sign in with Google."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
     <main className="auth-layout">
       <section className="auth-hero">
@@ -207,6 +240,27 @@ export function LoginPage({
               ? "Create an account to organize your courses, projects, and requirements."
               : "Continue managing your courses, projects, and requirements."}
           </p>
+
+          <div className="google-login-button">
+            <GoogleLogin
+              onSuccess={(response) =>
+                void handleGoogleSuccess(
+                  response.credential
+                )
+              }
+              onError={() =>
+                setError(
+                  "Google sign-in was cancelled or failed."
+                )
+              }
+              useOneTap={false}
+              width="320"
+            />
+          </div>
+
+          <div className="auth-divider">
+            <span>or continue with email</span>
+          </div>
 
           <form onSubmit={handleSubmit}>
             {isRegisterMode && (
