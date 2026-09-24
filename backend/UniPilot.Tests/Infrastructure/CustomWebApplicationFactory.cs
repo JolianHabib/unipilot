@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using UniPilot.Application.Documents;
 using UniPilot.Application.Requirements;
 using UniPilot.Infrastructure.Persistence;
+using UniPilot.Application.ProjectMembers;
 
 namespace UniPilot.Tests.Infrastructure;
 
@@ -71,6 +72,11 @@ public sealed class CustomWebApplicationFactory
             services.AddSingleton<
                 IRequirementExtractor,
                 TestRequirementExtractor>();
+                services.RemoveAll<IProjectInvitationEmailSender>();
+
+services.AddSingleton<
+    IProjectInvitationEmailSender,
+    TestProjectInvitationEmailSender>();
         });
     }
 }

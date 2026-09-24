@@ -28,4 +28,9 @@ public interface IProjectMemberService
         Guid academicProjectId,
         Guid memberId,
         CancellationToken cancellationToken = default);
+
+    Task<ProjectInvitationAcceptanceResult> AcceptInvitationAsync(
+        Guid userId,
+        string invitationToken,
+        CancellationToken cancellationToken = default);
 }

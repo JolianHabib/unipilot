@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Google.Apis.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using UniPilot.Application.Auth;
@@ -105,6 +106,89 @@ public sealed class AuthService(
                 user.Id,
                 user.FullName,
                 user.Email);
+
+        return new LoginResult(
+            true,
+            user.Id,
+            user.FullName,
+            user.Email,
+            token.AccessToken,
+            token.ExpiresAtUtc,
+            null);
+    }
+
+    public async Task<LoginResult>
+        GoogleLoginAsync(
+            GoogleLoginCommand command,
+            CancellationToken cancellationToken = default)
+    {
+        var clientId = configuration["GoogleAuth:ClientId"];
+
+        if (string.IsNullOrWhiteSpace(clientId))
+        {
+            throw new InvalidOperationException(
+                "Google authentication client ID was not configured.");
+        }
+
+        if (string.IsNullOrWhiteSpace(command.Credential))
+        {
+            return InvalidGoogleLogin();
+        }
+
+        GoogleJsonWebSignature.Payload payload;
+
+        try
+        {
+            payload = await GoogleJsonWebSignature.ValidateAsync(
+                command.Credential,
+                new GoogleJsonWebSignature.ValidationSettings
+                {
+                    Audience = [clientId]
+                });
+        }
+        catch (InvalidJwtException)
+        {
+            return InvalidGoogleLogin();
+        }
+
+        if (!payload.EmailVerified ||
+            string.IsNullOrWhiteSpace(payload.Email))
+        {
+            return InvalidGoogleLogin();
+        }
+
+        var normalizedEmail = payload.Email
+            .Trim()
+            .ToLowerInvariant();
+
+        var user = await dbContext.Users.SingleOrDefaultAsync(
+            existingUser =>
+                existingUser.Email == normalizedEmail,
+            cancellationToken);
+
+        if (user is null)
+        {
+            var fullName = string.IsNullOrWhiteSpace(payload.Name)
+                ? normalizedEmail.Split('@')[0]
+                : payload.Name.Trim();
+
+            user = new User
+            {
+                FullName = fullName,
+                Email = normalizedEmail,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(
+                    Convert.ToHexString(
+                        RandomNumberGenerator.GetBytes(32)))
+            };
+
+            dbContext.Users.Add(user);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        var token = tokenService.CreateToken(
+            user.Id,
+            user.FullName,
+            user.Email);
 
         return new LoginResult(
             true,
@@ -249,6 +333,18 @@ public sealed class AuthService(
             minutes,
             5,
             120);
+    }
+
+    private static LoginResult InvalidGoogleLogin()
+    {
+        return new LoginResult(
+            false,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "Google sign-in could not be verified.");
     }
 
     private static string HashToken(

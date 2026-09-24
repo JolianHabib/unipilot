@@ -10,6 +10,10 @@ public interface IAuthService
         LoginCommand command,
         CancellationToken cancellationToken = default);
 
+    Task<LoginResult> GoogleLoginAsync(
+        GoogleLoginCommand command,
+        CancellationToken cancellationToken = default);
+
     Task ForgotPasswordAsync(
         ForgotPasswordCommand command,
         CancellationToken cancellationToken = default);

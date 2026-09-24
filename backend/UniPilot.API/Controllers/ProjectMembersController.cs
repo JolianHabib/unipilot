@@ -63,8 +63,7 @@ public sealed class ProjectMembersController(
         {
             ProjectMemberOperationStatus.Success =>
                 StatusCode(StatusCodes.Status201Created, result.Member),
-            ProjectMemberOperationStatus.UserNotFound =>
-                NotFound(new { message = "No registered user has this email." }),
+            
             ProjectMemberOperationStatus.OwnerCannotBeMember =>
                 Conflict(new { message = "The project owner already has full access." }),
             ProjectMemberOperationStatus.AlreadyMember =>

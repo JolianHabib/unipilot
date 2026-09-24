@@ -86,6 +86,45 @@ public sealed class AuthController(
         });
     }
 
+    [HttpPost("google")]
+    public async Task<IActionResult> GoogleLogin(
+        [FromBody]
+        GoogleLoginRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Credential))
+        {
+            return BadRequest(new
+            {
+                message = "Google credential is required."
+            });
+        }
+
+        var result = await authService.GoogleLoginAsync(
+            new GoogleLoginCommand(request.Credential),
+            cancellationToken);
+
+        if (!result.Succeeded)
+        {
+            return Unauthorized(new
+            {
+                message = result.Error
+            });
+        }
+
+        return Ok(new
+        {
+            user = new
+            {
+                id = result.UserId,
+                fullName = result.FullName,
+                email = result.Email
+            },
+            accessToken = result.AccessToken,
+            expiresAtUtc = result.ExpiresAtUtc
+        });
+    }
+
     [HttpPost("forgot-password")]
     public async Task<IActionResult>
         ForgotPassword(

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using UniPilot.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using UniPilot.Infrastructure.Persistence;
 namespace UniPilot.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260924130556_AddPendingProjectInvitations")]
+    partial class AddPendingProjectInvitations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -273,20 +276,6 @@ namespace UniPilot.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("AcademicProjectId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("InvitationExpiresAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("InvitationSentAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("InvitationTokenHash")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("InvitedEmail")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
                     b.Property<DateTime>("JoinedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -295,18 +284,12 @@ namespace UniPilot.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<Guid?>("UserId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("InvitationTokenHash")
-                        .IsUnique();
-
                     b.HasIndex("UserId");
-
-                    b.HasIndex("AcademicProjectId", "InvitedEmail")
-                        .IsUnique();
 
                     b.HasIndex("AcademicProjectId", "UserId")
                         .IsUnique();
@@ -540,7 +523,8 @@ namespace UniPilot.Infrastructure.Persistence.Migrations
                     b.HasOne("UniPilot.Domain.Entities.User", "User")
                         .WithMany("ProjectMemberships")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("AcademicProject");
 

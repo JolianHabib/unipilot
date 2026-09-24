@@ -425,6 +425,18 @@ public sealed class AppDbContext(
             .IsRequired()
             .HasMaxLength(20);
 
+        projectMember.Property(x => x.InvitedEmail)
+            .HasMaxLength(255);
+            projectMember.Property(x => x.InvitationTokenHash)
+    .HasMaxLength(64);
+
+projectMember.Property(x => x.InvitationExpiresAtUtc);
+
+projectMember.Property(x => x.InvitationSentAtUtc);
+
+projectMember.HasIndex(x => x.InvitationTokenHash)
+    .IsUnique();
+
         projectMember.Property(x => x.JoinedAtUtc)
             .IsRequired();
 
@@ -432,6 +444,12 @@ public sealed class AppDbContext(
         {
             x.AcademicProjectId,
             x.UserId
+        }).IsUnique();
+
+        projectMember.HasIndex(x => new
+        {
+            x.AcademicProjectId,
+            x.InvitedEmail
         }).IsUnique();
 
         projectMember.HasIndex(x => x.UserId);
@@ -444,6 +462,7 @@ public sealed class AppDbContext(
         projectMember.HasOne(x => x.User)
             .WithMany(x => x.ProjectMemberships)
             .HasForeignKey(x => x.UserId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -82,23 +82,54 @@ public sealed class ProjectMemberEndpointsTests
     }
 
     [Fact]
-    public async Task AddMember_WithUnknownEmail_ReturnsNotFound()
-    {
-        var owner = await RegisterAndLoginAsync("Owner");
-        var projectId = await CreateProjectAsync(owner.Token);
+public async Task AddMember_WithUnknownEmail_CreatesPendingInvitation()
+{
+    var owner = await RegisterAndLoginAsync("Owner");
+    var projectId = await CreateProjectAsync(owner.Token);
 
-        var response = await SendMemberRequestAsync(
-            HttpMethod.Post,
-            projectId,
-            owner.Token,
-            new
-            {
-                email = $"missing-{Guid.NewGuid():N}@example.com",
-                role = "Viewer"
-            });
+    var invitedEmail =
+        $"pending-{Guid.NewGuid():N}@example.com";
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
+    var response = await SendMemberRequestAsync(
+        HttpMethod.Post,
+        projectId,
+        owner.Token,
+        new
+        {
+            email = invitedEmail,
+            role = "Viewer"
+        });
+
+    Assert.Equal(
+        HttpStatusCode.Created,
+        response.StatusCode);
+
+    using var body = JsonDocument.Parse(
+        await response.Content.ReadAsStringAsync());
+
+    Assert.Equal(
+        invitedEmail,
+        body.RootElement
+            .GetProperty("email")
+            .GetString());
+
+    Assert.Equal(
+        "Viewer",
+        body.RootElement
+            .GetProperty("role")
+            .GetString());
+
+    Assert.True(
+        body.RootElement
+            .GetProperty("isPending")
+            .GetBoolean());
+
+    Assert.Equal(
+        JsonValueKind.Null,
+        body.RootElement
+            .GetProperty("userId")
+            .ValueKind);
+}
 
     [Fact]
     public async Task UpdateAndRemoveMember_Succeeds()

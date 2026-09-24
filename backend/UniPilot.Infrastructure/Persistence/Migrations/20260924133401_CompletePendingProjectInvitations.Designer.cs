@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using UniPilot.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using UniPilot.Infrastructure.Persistence;
 namespace UniPilot.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260924133401_CompletePendingProjectInvitations")]
+    partial class CompletePendingProjectInvitations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -273,16 +276,6 @@ namespace UniPilot.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("AcademicProjectId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("InvitationExpiresAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("InvitationSentAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("InvitationTokenHash")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("InvitedEmail")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
@@ -299,9 +292,6 @@ namespace UniPilot.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("InvitationTokenHash")
-                        .IsUnique();
 
                     b.HasIndex("UserId");
 

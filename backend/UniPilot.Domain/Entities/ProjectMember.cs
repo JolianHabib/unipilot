@@ -10,9 +10,17 @@ public sealed class ProjectMember
 
     public AcademicProject AcademicProject { get; set; } = null!;
 
-    public Guid UserId { get; set; }
+    public Guid? UserId { get; set; }
 
-    public User User { get; set; } = null!;
+    public User? User { get; set; }
+
+    public string? InvitedEmail { get; set; }
+
+    public string? InvitationTokenHash { get; set; }
+
+    public DateTime? InvitationExpiresAtUtc { get; set; }
+
+    public DateTime? InvitationSentAtUtc { get; set; }
 
     public ProjectMemberRole Role { get; set; } =
         ProjectMemberRole.Viewer;
