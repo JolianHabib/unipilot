@@ -41,7 +41,7 @@ public static class DependencyInjection
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<IAcademicProjectService,
             AcademicProjectService>();
-        services.AddSingleton<IFileStorage, LocalFileStorage>();
+services.AddSingleton<IFileStorage, SupabaseFileStorage>();
         services.AddScoped<IProjectDocumentService,
             ProjectDocumentService>();
         services.AddSingleton<IPdfTextExtractor,
